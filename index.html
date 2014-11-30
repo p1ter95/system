@@ -1,0 +1,366 @@
+﻿<!DOCTYPE html>
+<html>
+	<head>
+		<title>System</title>
+		<style>
+             @import url(http://fonts.googleapis.com/css?family=Arimo:400,700);
+		    * {
+                box-sizing: border-box;
+                -moz-box-sizing: border-box;
+		    }
+		    body {
+                padding: 0;
+                margin: 0;
+                font: 14px Arimo;
+                width: 100%;
+                height: 100%;
+		    }
+		    #dekstop {
+                position: relative;
+		    }
+
+		    #taskbar {
+                position: absolute;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                border: 1px solid #ccc;
+                z-index: 999;
+                box-shadow:         0 0 50px -8px rgba(50, 50, 50, 0.3);
+                background: #F2F2F2;
+		    }
+
+		    #taskbar .taskbar-app {
+                display: inline-block;
+                position: relative;
+                width: 100px;
+                top: -1px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                border: 1px solid #ccc;
+                padding: 10px;
+                margin: 0 1px 0 0;
+                background: white;
+                font-size: 110%;
+		    }
+
+            #taskbar #taskbar-time {
+                position: absolute;
+                border-left: 1px solid #ccc;
+                top: 0;
+                bottom: 0;
+                right: 0;
+                padding: 10px;
+                background: white;
+                font-size: 110%;
+		    }
+
+            #taskbar .taskbar-app:hover {
+                cursor: pointer;
+                background: linear-gradient(to bottom, white 0%,#F2F2F2 100%);
+		    }
+
+            #taskbar .taskbar-app:active {
+                top: 1px;
+                left: 1px;
+		    }
+
+		    #login-box {
+                  width: 400px;
+                  height: 200px;
+                  overflow: auto;
+                  margin: auto;
+                  position: absolute;
+                  z-index: 999;
+                  top: 0; left: 0; bottom: 0; right: 0;
+		    }
+
+		    #login-box .window-content{
+                height: 171px;
+		    }
+
+		    .window {
+                position: absolute;
+                border: 1px solid #ccc;
+                top: 0;
+                left: 0;
+                box-shadow:         0 0 30px 0px rgba(50, 50, 50, 0.6);
+                border-radius: 2px;
+                overflow: hidden;
+		    }
+
+		    .window-name-div {
+                padding: 5px;
+                border-bottom: 1px solid #ccc;
+                position: relative;
+                font: 14px Arimo;
+                background: #DBDBDB;
+		    }
+
+		    .window-name {
+                font: normal normal normal 14px Arimo;
+                margin: 0;
+		    }
+
+            .window-content {
+                position: absolute;
+                top: 27px;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                padding: 10px;
+                background: #F2F2F2;
+		    }
+
+		    .window-action {
+                position: absolute;
+                width: 2em;
+                top: 0;
+                bottom: 0;
+                text-align: center;
+                vertical-align: middle;
+                line-height: 15px;
+		    }
+
+		    .window-action-close {
+                background: url('res/close.png') center center no-repeat;
+                right: 0;
+
+		    }
+
+            .window-action-maximize {
+                background: url('res/maximize.png') center center no-repeat;
+                right: 20px;
+		    }
+
+            .window-action-minimize {
+                background: url('res/minimize.png') center center no-repeat;
+                right: 40px;
+		    }
+
+		    .window-action:hover {
+               cursor: pointer
+		    }
+
+		    .window .button {
+                position: absolute;
+                padding: 7px;
+                border-radius: 3px;
+                background: #E3E3E3;
+                border:1px solid #ccc;
+                outline: 0;
+                font-size: 13px;
+		    }
+
+		    .window .button:hover {
+                border-color: #C7C7C7;
+		        background: #EBEBEB;
+		     }
+
+		    .window .button:active {
+		        border-color: black;
+            }
+
+		    .window.messagebox .window-content {
+                background-repeat: no-repeat;
+                background-position: 10px 10px;
+                word-wrap: break-word;
+		    }
+
+		    .window.messagebox.icon .window-content {
+                padding-left: 52px;
+		    }
+
+            .window.messagebox.error .window-content{
+                background-image: url('res/error-icon.png');
+		    }
+
+            .window.messagebox.warning .window-content{
+                background-image: url('res/warning-icon.png');
+		    }
+
+            .window.messagebox.question_mark .window-content {
+                background-image: url('res/question-mark-icon.png');
+		    }
+
+		    .window.messagebox.info .window-content{
+                background-image: url('res/info-icon.png');
+		    }
+
+            .window.messagebox.tick .window-content{
+                background-image: url('res/tick-icon.png');
+		    }
+
+            .window .select-list:not([multiple]){
+                border:1px solid #ccc;
+                position: absolute;
+                border-radius: 3px;
+                padding: 5px;
+		    }
+
+            .window .select-list[multiple]{
+                border:1px solid #ccc;
+                position: absolute;
+                border-radius: 3px;
+		    }
+
+		    .window .select-list option {
+                padding: 5px;
+		    }
+
+		    .element-field {
+                border: 1px solid #ccc;
+                background: white;
+		    }
+
+		    .element {
+                float: left;
+                margin: 7px;
+                padding: 5px;
+                width: 64px;
+                height: 64px;
+                font-size: 110%;
+                border: 1px solid white;
+                border-radius: 3px;
+                transition: border 0.25s linear;
+		    }
+
+		    .element .desc {
+                font-size: 90%;
+                color: #9E9E9E;
+		    }
+		    .element:hover {
+                cursor: pointer;
+                border: 1px solid #ccc;
+		    }
+
+            .element.selected{
+                background:linear-gradient(to bottom, white 0%,#F2F2F2 100%);
+                border: 1px solid #ccc;
+		    }
+
+		    input {
+                position: absolute;
+		    }
+
+            input[type=text], input[type=password]{
+                padding: 7px;
+                border-radius: 3px;
+                background: white;
+                border:1px solid #ccc;
+                font-size: 13px;
+		    }
+
+		    .window-content p {
+                margin: 0;
+                position: absolute;
+		    }
+            
+            .ui-resizable-handle {
+	            position: absolute;
+	            font-size: 0.1px;
+	            display: block;
+            }
+
+            .ui-resizable-disabled .ui-resizable-handle,
+            .ui-resizable-autohide .ui-resizable-handle {
+	            display: none;
+            }
+            .ui-resizable-n {
+	            cursor: n-resize;
+	            height: 7px;
+	            width: 100%;
+	            top: -5px;
+	            left: 0;
+            }
+            .ui-resizable-s {
+	            cursor: s-resize;
+	            height: 7px;
+	            width: 100%;
+	            bottom: -5px;
+	            left: 0;
+            }
+            .ui-resizable-e {
+	            cursor: e-resize;
+	            width: 7px;
+	            right: -5px;
+	            top: 0;
+	            height: 100%;
+            }
+            .ui-resizable-w {
+	            cursor: w-resize;
+	            width: 7px;
+	            left: -5px;
+	            top: 0;
+	            height: 100%;
+            }
+
+            .ui-resizable-se {
+	            cursor: se-resize;
+	            width: 12px;
+	            height: 12px;
+	            right: 1px;
+	            bottom: 1px;
+            }
+            .ui-resizable-sw {
+	            cursor: sw-resize;
+	            width: 9px;
+	            height: 9px;
+	            left: -5px;
+	            bottom: -5px;
+            }
+            .ui-resizable-nw {
+	            cursor: nw-resize;
+	            width: 9px;
+	            height: 9px;
+	            left: -5px;
+	            top: -5px;
+            }
+            .ui-resizable-ne {
+	            cursor: ne-resize;
+	            width: 9px;
+	            height: 9px;
+	            right: -5px;
+	            top: -5px;
+            }
+		</style>
+
+
+        <script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
+        <script src="http://code.jquery.com/ui/1.11.1/jquery-ui.js"></script>
+		<script src="js/script.js"></script>
+	</head>
+	<body>
+        <!--<div id="login-box" class="window"><div class="window-name-div"><h1 class="window-name">Logowanie</h1></div>
+            <div class="window-content">
+                <table>
+                    <tr>
+                        <td>
+                            <label for="login-username">Username</label>
+                        </td>
+                        <td>
+                            <input type="text" id="login-username"/>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <label for="login-password">Password</label>
+                        </td>
+                        <td>
+                            <input type="password" id="login-password"/>
+                        </td>
+                    </tr>
+
+                </table>
+                
+                <button class="button">Login</button>
+            </div>
+            
+         </div>-->
+            
+        <div id="desktop">
+            <div id="desktop-elements"></div>
+        </div>
+	</body>
+</html>
