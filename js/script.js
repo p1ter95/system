@@ -14,11 +14,11 @@ System.Info = {};
 
 System.initSettings = function () {
     System.Settings.defaultDimensions = { width: 640, height: 480 };
-    System.SettingsfadeInTime = 200;
-    System.SettingsfadeOutTime = 200;
-    System.SettingstaskbarHeight = 40;
-    System.SettingsdesktopRefreshRate = 5;
-    System.SettingsapplicationRefreshRate = 5;
+    System.Settings.fadeInTime = 200;
+    System.Settings.fadeOutTime = 200;
+    System.Settings.taskbarHeight = 40;
+    System.Settings.desktopRefreshRate = 5;
+    System.Settings.applicationRefreshRate = 5;
 }
 
 System.loadSettings = function (settings) {
@@ -59,16 +59,6 @@ UserManager.login = function (username, password, callback) {
     });
 }
 
-UserManager.isLogged = function (callback) {
-    $.ajax({
-        type: 'POST',
-        url: '/systemt/is_logged',
-        dataType: 'script',
-        cache: 'false',
-        success: callback
-    });
-}
-
 UserManager.logout = function () {
     $.ajax({
         type: 'POST',
@@ -78,17 +68,19 @@ UserManager.logout = function () {
     });
 }
 
-UserManager.register = function (username, password, callback) {
+UserManager.register = function (username, password, password_conf, callback) {
     $.ajax({
         type: 'POST',
-        data: { username: username, password: password },
+        data: { username: username, password: password, password_conf: password_conf },
         url: '/systemt/register',
-        dataType: 'text',
+        dataType: 'json',
         cache: 'false',
-        success: function (response) {
-            System.desktop.app.createDirectory(username, undefined, true);
-            System.desktop.app.writeFile(username + '/settings.cfg', JSON.stringify(System.Settings), true);
-            callback(response);
+        success: function (r) {
+            if (bool(r.success)) {
+                System.desktop.app.createDirectory(username, undefined, true);
+                System.desktop.app.writeFile(username + '/settings.cfg', JSON.stringify(System.Settings), true);
+            }
+            if (callback != undefined) callback(r);
         }
     });
 }
@@ -113,7 +105,7 @@ Desktop = function () {
     this.setBackgroundColor = function (color) {
         this.e.css('background-color', color);
     }
-    
+
     this.refresh = function () {
         data.e.css('height', $(window).height());
         data.taskbar.find('#taskbar-time').html(data.getCurrentTime());
@@ -124,7 +116,7 @@ Desktop = function () {
 
     this.createTaskbar = function () {
         var e = $(document.createElement('div'));
-    
+
         e.attr('id', 'taskbar')
             .html('<span id="taskbar-time"></span>');
         this.taskbar = e;
@@ -132,16 +124,16 @@ Desktop = function () {
     }
 
     this.addElement = function (element, field) {
-            var d = $(document.createElement('div'));
-            d.addClass('element')
-                    .append('<div class="text">' + element.text + '<div class="desc">' + element.desc + '</div></div>')
-                    .on('dblclick', element.handler)
-                    .on('click', function () {
-                        $('.element').removeClass('selected');
-                        $(this).addClass('selected')
-                    });
-            
-            field.append(d);
+        var d = $(document.createElement('div'));
+        d.addClass('element')
+                .append('<div class="text">' + element.text + '<div class="desc">' + element.desc + '</div></div>')
+                .on('dblclick', element.handler)
+                .on('click', function () {
+                    $('.element').removeClass('selected');
+                    $(this).addClass('selected')
+                });
+
+        field.append(d);
     }
 
     this.addElements = function (elements, field) {
@@ -160,7 +152,7 @@ Desktop = function () {
             else {
                 _window.minimize();
             }
-            });
+        });
     }
 
     this.removeTaskbarElement = function (_window) {
@@ -206,10 +198,6 @@ Generic.prototype.getPosition = function () {
     return { x: parseInt(this.e.css('left')), y: parseInt(this.e.css('top')) };
 }
 
-Generic.prototype.getPosition = function () {
-    return { x: parseInt(this.e.css('left')), y: parseInt(this.e.css('top')) };
-}
-
 Generic.prototype.on = function (events, selector, data, handler) {
     this.e.on(events, selector, data, handler);
 }
@@ -221,7 +209,7 @@ Generic.prototype.off = function (events, selector, handler) {
 Window = function (caption, width, height) {
     this.type = 'window';
     var e = $(document.createElement('div'));
-    
+
     e.addClass('window')
      .html('<div class="window-name-div"><h1 class="window-name">' + caption + '</h1><div class="window-action window-action-close"></div><div class="window-action window-action-maximize"></div><div class="window-action window-action-minimize"></div></div><div class="window-content"></div>')
      .hide()
@@ -232,12 +220,10 @@ Window = function (caption, width, height) {
     this.showOnTaskbar = true;
     this.maximized = false;
     this.minimized = false;
+    this.opened = false;
     this.dimensionsBeforeMaximization = { width: 0, height: 0, x: 0, y: 0 };
-    this.buttons = [];
-    this.lists = [];
-    this.inputs = [];
-    this.labels = [];
-    this.element_fields = [];
+    this.designer = function () { };
+    this.main = function () { };
 }
 
 ElementField = function (x, y, width, height, elements) {
@@ -311,7 +297,8 @@ Label = function (text, x, y) {
     this.type = 'label';
     var e = $(document.createElement('p'));
 
-    e.html(text)
+    e.addClass('label')
+     .html(text)
      .css('top', y)
      .css('left', x)
     this.e = e;
@@ -389,11 +376,17 @@ Window.prototype.unminimize = function () {
     this.e.fadeIn(System.Settings.fadeInTime);
 }
 Window.prototype.open = function () {
-    this.e.fadeIn(System.Settings.fadeInTime);
-    this.setFocus();
-    if(this.showOnTaskbar) System.desktop.addTaskbarElement(this);
+    if (!this.opened) {
+        this.e.fadeIn(System.Settings.fadeInTime);
+        this.setFocus();
+        if (this.showOnTaskbar) System.desktop.addTaskbarElement(this);
+        this.designer();
+        this.main();
+    }
+    this.opened = true;
 };
 Window.prototype.close = function () {
+    this.opened = false;
     if (this.getMainWindow()) ProcessManager.killProcess(this.getProcessId());
     if (this.destroyOnClose) ApplicationManager.closeWindow(this.getProcessId(), this.getId());
     this.e.fadeOut(System.Settings.fadeOutTime);
@@ -436,6 +429,36 @@ Window.prototype.setFocus = function (z_index) {
     this.e.css('z-index', z_index ? z_index : 100);
 }
 
+Window.prototype.addItem = function (item) {
+    switch (item.type) {
+        case 'element-field':
+            var id = $('[data-window-process-id=' + this.getProcessId() + '][data-window-id=' + this.getId() + '] .element-field').length;
+            item.e.attr('data-element-field-id', id);
+            $('[data-window-process-id=' + this.getProcessId() + '][data-window-id=' + this.getId() + '] .window-content').append(item.e);
+            break;
+        case 'button':
+            var id = $('[data-window-process-id=' + this.getProcessId() + '][data-window-id=' + this.getId() + '] .button').length;
+            item.e.attr('data-button-id', id);
+            $('[data-window-process-id=' + this.getProcessId() + '][data-window-id=' + this.getId() + '] .window-content').append(item.e);
+            break;
+        case 'list':
+            var id = $('[data-window-process-id=' + this.getProcessId() + '][data-window-id=' + this.getId() + '] .select-list').length;
+            item.e.attr('data-select-list-id', id);
+            $('[data-window-process-id=' + this.getProcessId() + '][data-window-id=' + this.getId() + '] .window-content').append(item.e);
+            break;
+        case 'input':
+            var id = $('[data-window-process-id=' + this.getProcessId() + '][data-window-id=' + this.getId() + '] input').length;
+            item.e.attr('data-input-id', id);
+            $('[data-window-process-id=' + this.getProcessId() + '][data-window-id=' + this.getId() + '] .window-content').append(item.e);
+            break;
+        case 'label':
+            var id = $('[data-window-process-id=' + this.getProcessId() + '][data-window-id=' + this.getId() + '] .label').length;
+            item.e.attr('data-label-id', id);
+            $('[data-window-process-id=' + this.getProcessId() + '][data-window-id=' + this.getId() + '] .window-content').append(item.e);
+            break;
+    }
+}
+
 Application.prototype.messageBox = function (text, icon, caption) {
     var messageBox = new Window(caption != undefined ? caption : 'Message Box', 400, 160);
     messageBox.destroyOnClose = true;
@@ -455,7 +478,7 @@ Application.prototype.prompt = function (object, text, caption, defaultText) {
     this.addWindow(prompt);
     var label = new Label(text, 15, 15);
     var input = new Input('text', 15, 40, 'prompt-input', defaultText);
-    var okBtn = new Button('OK', 15, 80, function () { object.val = input.getValue(); prompt.close();});
+    var okBtn = new Button('OK', 15, 80, function () { object.val = input.getValue(); prompt.close(); });
     var cancelBtn = new Button('Cancel', 60, 80, function () { object.val = false; prompt.close(); });
     this.addItem(label, prompt);
     this.addItem(input, prompt);
@@ -467,23 +490,27 @@ Application.prototype.prompt = function (object, text, caption, defaultText) {
 Application.prototype.addItem = function (item, _window) {
     switch (item.type) {
         case 'element-field':
-            var id = _window.element_fields.push(item) - 1;
+            var id = $('[data-window-process-id=' + this.process_id + '][data-window-id=' + _window.getId() + '] .element-field').length;
             item.e.attr('data-element-field-id', id);
             $('[data-window-process-id=' + this.process_id + '][data-window-id=' + _window.getId() + '] .window-content').append(item.e);
             break;
-        case 'button': var id = _window.buttons.push(item) - 1;
+        case 'button':
+            var id = $('[data-window-process-id=' + this.process_id + '][data-window-id=' + _window.getId() + '] .button').length;
             item.e.attr('data-button-id', id);
             $('[data-window-process-id=' + this.process_id + '][data-window-id=' + _window.getId() + '] .window-content').append(item.e);
             break;
-        case 'list': var id = _window.lists.push(item) - 1;
+        case 'list':
+            var id = $('[data-window-process-id=' + this.process_id + '][data-window-id=' + _window.getId() + '] .select-list').length;
             item.e.attr('data-select-list-id', id);
             $('[data-window-process-id=' + this.process_id + '][data-window-id=' + _window.getId() + '] .window-content').append(item.e);
             break;
-        case 'input': var id = _window.inputs.push(item) - 1;
+        case 'input':
+            var id = $('[data-window-process-id=' + this.process_id + '][data-window-id=' + _window.getId() + '] input').length;
             item.e.attr('data-input-id', id);
             $('[data-window-process-id=' + this.process_id + '][data-window-id=' + _window.getId() + '] .window-content').append(item.e);
             break;
-        case 'label': var id = _window.labels.push(item) - 1;
+        case 'label':
+            var id = $('[data-window-process-id=' + this.process_id + '][data-window-id=' + _window.getId() + '] .label').length;
             item.e.attr('data-label-id', id);
             $('[data-window-process-id=' + this.process_id + '][data-window-id=' + _window.getId() + '] .window-content').append(item.e);
             break;
@@ -491,9 +518,8 @@ Application.prototype.addItem = function (item, _window) {
 }
 
 Application.prototype.addWindow = function (_window) {
-    var id = this.windows.push(_window) -1;
     var data = this;
-    //var id = $('[data-window-process-id=' + this.process_id + '].window').length;
+    var id = this.windows.push(_window) - 1;
     _window.e.attr('data-window-id', id);
     _window.e.attr('data-window-process-id', this.process_id);
     $('#desktop').append(_window.e);
@@ -529,7 +555,7 @@ Application.prototype.close = function () {
 Application.prototype.writeFile = function (fileName, data, absolute) {
     $.ajax({
         type: 'POST',
-        data: { write_file_data: data, write_file_name: fileName, write_file_absolute: (absolute != undefined ? true : '' )},
+        data: { write_file_data: data, write_file_name: fileName, write_file_absolute: (absolute != undefined ? true : '') },
         url: '/systemt/write_file',
         cache: 'false',
         success: function (response) {
@@ -542,7 +568,7 @@ Application.prototype.readFile = function (fileName, callback) {
     $.ajax({
         async: false,
         type: 'POST',
-        data: {read_file_name: fileName },
+        data: { read_file_name: fileName },
         url: '/systemt/read_file',
         dataType: 'text',
         cache: 'false',
@@ -580,7 +606,7 @@ app1.main = function () {
     this.addItem(button1, _window);
     var button2 = new Button('co wybralem w pierwszym', 100, 120, function () { data.messageBox(list1.getSelected().text) });
     this.addItem(button2, _window);
-    var button3 = new Button('zapisz tresc wybranej opcji na serwer', 100, 200, function () { data.writeFile('lol.txt',list1.getSelected().text)  });
+    var button3 = new Button('zapisz tresc wybranej opcji na serwer', 100, 200, function () { data.writeFile('lol.txt', list1.getSelected().text) });
     this.addItem(button3, _window2);
     var button4 = new Button('odczytaj co jest w pliku lol.txt', 100, 240, function () { data.messageBox(data.readFile('lol.txt')); });
     this.addItem(button4, _window2);
@@ -647,7 +673,7 @@ explorer.main = function () {
     run.width = 400;
     run.setMainWindow();
     this.addWindow(run);
-    var input = new Input('text', 20, 15, 'app-name', '', {lolsdsd: 'xd'});
+    var input = new Input('text', 20, 15, 'app-name', '', { lolsdsd: 'xd' });
     this.addItem(input, run);
     var runButton = new Button('Run', 210, 15, function () { ApplicationManager.run(ApplicationManager.getApplicationByName(input.getValue())); });
     this.addItem(runButton, run);
@@ -656,7 +682,7 @@ explorer.main = function () {
     this.addItem(runListButton, run);
 
     var arrAppList = [];
-    for(var i=0; i< System.Applications.length; i++){
+    for (var i = 0; i < System.Applications.length; i++) {
         arrAppList.push(new Option(System.Applications[i].name, System.Applications[i].name));
     }
     var appList = new List(arrAppList, 20, 50);
@@ -666,27 +692,78 @@ explorer.main = function () {
 
 login = new Application('Login');
 
+
 login.main = function () {
-    var self = this;
-    var login_window = new Window('Login', 400, 170);
+    var selfApp = this;
+    var login_window = new Window('Login', 400, 180);
+
     login_window.setMainWindow();
     this.addWindow(login_window);
-    var usernameInput = new Input('text', 20, 15);
-    var passwordInput = new Input('password', 20, 50);
-    var loginButton = new Button('Log in', 20, 85, function () {
-        UserManager.login(usernameInput.getValue(), passwordInput.getValue(), function (r) {
-            if (bool(r)) {             
-                self.close();
-                System.desktop.app.messageBox('Logged in successfully', 'tick');
-            }
-            else {
-                System.desktop.app.messageBox('Couldn\'t log in with the specified data', 'error');
-            }
+    login_window.designer = function () {
+        var self = this;
+        this.username = new Input('text', 90, 15);        
+        this.password = new Input('password', 90, 50);
+        this.usernameLbl = new Label('Username', 15, 20);
+        this.passwordLbl = new Label('Password', 15, 55);
+        this.loginBtn = new Button('Log in', 15, 90, function () {
+            UserManager.login(self.username.getValue(), self.password.getValue(), function (r) {
+                if (bool(r)) {
+                    selfApp.close();
+                    System.desktop.app.messageBox('Logged in successfully', 'tick');
+                }
+                else {
+                    System.desktop.app.messageBox('Couldn\'t log in with the specified data', 'error');
+                }
+            });
         });
-    });
-    this.addItem(usernameInput, login_window);
-    this.addItem(passwordInput, login_window);
-    this.addItem(loginButton, login_window);
+
+        this.registerBtn = new Button('Don\'t have an account?', 75, 90, function () {
+            register_window.open();
+        });
+
+        this.addItem(this.username);   
+        this.addItem(this.password);
+        this.addItem(this.usernameLbl)
+        this.addItem(this.passwordLbl);
+        this.addItem(this.loginBtn);
+        this.addItem(this.registerBtn);
+    }
+
+    var register_window = new Window('Register', 400, 200);
+    this.addWindow(register_window);
+    register_window.designer = function () {
+        var self = this;
+        this.username = new Input('text', 135, 15);      
+        this.password = new Input('password', 135, 50);
+        this.passwordConfirm = new Input('password', 135, 85);
+        this.usernameLbl = new Label('Username', 15, 20);
+        this.passwordLbl = new Label('Password', 15, 55);
+        this.passwordConfirmLbl = new Label('Confirm Password', 15, 90);
+        this.registerBtn = new Button('Sign up', 15, 130, function () {
+            UserManager.register(self.username.getValue(), self.password.getValue(), self.passwordConfirm.getValue(), function (r) {
+                if (bool(r.success)) {
+                    self.close();
+                    login_window.setFocus();
+                    System.desktop.app.messageBox('Registered successfully', 'tick');
+                }
+                else {
+                    var text = '';
+                    for (var key in r) {
+                        if (key != 'success') text += '<div>' + r[key] + '</div>';
+                    }
+                    System.desktop.app.messageBox('Some errors occured:' + text, 'error');
+                }
+            });
+        });
+        this.addItem(this.username);
+        this.addItem(this.password);
+        this.addItem(this.passwordConfirm);
+        this.addItem(this.usernameLbl);
+        this.addItem(this.passwordLbl);
+        this.addItem(this.passwordConfirmLbl);
+        this.addItem(this.registerBtn);
+    }
+
     login_window.open();
 }
 
@@ -694,14 +771,14 @@ Process = function (id, app) {
     this.id = id;
     this.app = app;
 }
-ProcessManager = { id_counter: 0 , process_ids: []};
+ProcessManager = { id_counter: 0, process_ids: [] };
 ProcessManager.getFreeId = function () {
     this.id_counter++;
     this.process_ids.push(this.id_counter);
     return this.id_counter;
 }
 
-ProcessManager.getProcessIds = function() {
+ProcessManager.getProcessIds = function () {
     return this.process_ids;
 }
 
@@ -714,10 +791,9 @@ ProcessManager.getProcessById = function (process_id) {
 ProcessManager.killProcess = function (process_id) {
     for (var i = 0; i < System.Processes.length; i++) {
         if (System.Processes[i].id == process_id) {
-            for(var j=0; j < System.Processes[i].app.windows.length; j++)
-            {
+            for (var j = 0; j < System.Processes[i].app.windows.length; j++) {
                 //System.Processes[i].app.windows[j].close(); CZA NAPRAWIC
-                ApplicationManager.closeWindow(process_id, System.Processes[i].app.windows[j].getId()); 
+                ApplicationManager.closeWindow(process_id, System.Processes[i].app.windows[j].getId());
             }
             System.Processes.splice(i, 1);
             var index = this.process_ids.indexOf(process_id);
@@ -734,7 +810,7 @@ ApplicationManager.load = function (app) {
     for (var i = 0; i < System.Applications.length; i++) {
         if (System.Applications[i].name == _app.name) {
             console.error('An app name conflict has occured with ' + _app.name + '. \'2\' was appended to the name');
-            _app.name += '2';        
+            _app.name += '2';
         }
     }
     System.Applications.push(_app);
@@ -759,8 +835,7 @@ ApplicationManager.refresh = function () {
         var id = ProcessManager.getProcessIds()[i];
         var process = ProcessManager.getProcessById(id);
 
-        for(var j=0; j < System.Processes[i].app.windows.length; j++)
-        {
+        for (var j = 0; j < System.Processes[i].app.windows.length; j++) {
             var _window = System.Processes[i].app.windows[j];
 
             if (_window.maximized && _window.getPosition().x == 0 && _window.getPosition().y == 0) _window.e.find('.window-action-maximize').css('background-image', 'url("res/maximize2.png")');
@@ -769,7 +844,7 @@ ApplicationManager.refresh = function () {
 
         }
     }
-    setTimeout(ApplicationManager.refresh, 1000 / System.Settings.applicationRefreshRate);  
+    setTimeout(ApplicationManager.refresh, 1000 / System.Settings.applicationRefreshRate);
 }
 
 ApplicationManager.run = function (app) {
@@ -785,7 +860,7 @@ ApplicationManager.run = function (app) {
     }
 }
 
-window.onerror = function(error, url, line) {
+window.onerror = function (error, url, line) {
     System.desktop.app.messageBox(error, 'error', 'Error');
 };
 
