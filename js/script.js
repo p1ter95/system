@@ -11,6 +11,11 @@ System = {};
 
 System.Settings = {};
 System.Info = {};
+System.UserManager = {};
+System.ProcessManager = { id_counter: 0, process_ids: [] };
+System.ApplicationManager = {};
+System.Applications = [];
+System.Processes = [];
 
 System.initSettings = function () {
     System.Settings.defaultDimensions = { width: 640, height: 480 };
@@ -28,24 +33,21 @@ System.loadSettings = function (settings) {
 System.Init = function () {
     this.initSettings();
     System.desktop = new Desktop();
-    System.desktop.createTaskbar();
-    System.Applications = [];
-    System.Processes = [];
-    ApplicationManager.load(app1);
-    ApplicationManager.load(app2);
-    ApplicationManager.load(explorer);
-    ApplicationManager.load(login);
-    ApplicationManager.run(this.Applications[0]);
-    ApplicationManager.run(this.Applications[1]);
-    ApplicationManager.run(this.Applications[2]);
-    System.desktop.app = ApplicationManager.getApplicationByName('Explorer');
-    ApplicationManager.refresh();
+    System.desktop.createTaskbar();  
+    this.ApplicationManager.load(app1);
+    this.ApplicationManager.load(app2);
+    this.ApplicationManager.load(explorer);
+    this.ApplicationManager.load(login);
+    this.ApplicationManager.run(this.Applications[0]);
+    this.ApplicationManager.run(this.Applications[1]);
+    this.ApplicationManager.run(this.Applications[2]);
+    System.desktop.app = System.ApplicationManager.getApplicationByName('Explorer');
+    this.ApplicationManager.refresh();
     this.desktop.refresh();
 }
 
-UserManager = {};
 
-UserManager.login = function (username, password, callback) {
+System.UserManager.login = function (username, password, callback) {
     $.ajax({
         type: 'POST',
         data: { username: username, password: password },
@@ -59,7 +61,7 @@ UserManager.login = function (username, password, callback) {
     });
 }
 
-UserManager.logout = function () {
+System.UserManager.logout = function () {
     $.ajax({
         type: 'POST',
         url: '/systemt/logout',
@@ -68,7 +70,7 @@ UserManager.logout = function () {
     });
 }
 
-UserManager.register = function (username, password, password_conf, callback) {
+System.UserManager.register = function (username, password, password_conf, callback) {
     $.ajax({
         type: 'POST',
         data: { username: username, password: password, password_conf: password_conf },
@@ -95,6 +97,9 @@ Application = function (name) {
 
 Application.prototype.systemInfo = System.Info;
 Application.prototype.systemSettings = System.Settings;
+Application.prototype.UserManager = System.UserManager;
+Application.prototype.ProcessManager = System.ProcessManager;
+Application.prototype.ApplicationManager = System.ApplicationManager;
 
 Desktop = function () {
     this.e = $('#desktop');
@@ -105,10 +110,9 @@ Desktop = function () {
     this.setBackgroundColor = function (color) {
         this.e.css('background-color', color);
     }
-
     this.refresh = function () {
         data.e.css('height', $(window).height());
-        data.taskbar.find('#taskbar-time').html(data.getCurrentTime());
+        data.taskbar.children('#taskbar-time').html(data.getCurrentTime());
         data.taskbar.css('height', System.Settings.taskbarHeight);
         data.d.css('height', $(window).height() - System.Settings.taskbarHeight);
         setTimeout(System.desktop.refresh, 1000 / System.Settings.desktopRefreshRate);
@@ -252,8 +256,8 @@ Button = function (text, x, y, handler) {
 
     e.addClass('button')
      .html(text)
-     .css('top', y)
-     .css('left', x)
+     .css('top', y != undefined ? y : '')
+     .css('left', x != undefined ? x : '')
      .on('click', handler);
     this.e = e;
 }
@@ -387,10 +391,11 @@ Window.prototype.open = function () {
 };
 Window.prototype.close = function () {
     this.opened = false;
-    if (this.getMainWindow()) ProcessManager.killProcess(this.getProcessId());
-    if (this.destroyOnClose) ApplicationManager.closeWindow(this.getProcessId(), this.getId());
+    if (this.getMainWindow()) System.ProcessManager.killProcess(this.getProcessId());
+    if (this.destroyOnClose) System.ApplicationManager.closeWindow(this.getProcessId(), this.getId());
     this.e.fadeOut(System.Settings.fadeOutTime);
     System.desktop.removeTaskbarElement(this);
+    this.e.find('.window-content').children().remove();
 };
 Window.prototype.maximize = function () {
     if (this.maximized) {
@@ -429,6 +434,10 @@ Window.prototype.setFocus = function (z_index) {
     this.e.css('z-index', z_index ? z_index : 100);
 }
 
+Window.prototype.getChildrenCount = function () {
+    return this.e.find('*').length;
+}
+
 Window.prototype.addItem = function (item) {
     switch (item.type) {
         case 'element-field':
@@ -459,12 +468,21 @@ Window.prototype.addItem = function (item) {
     }
 }
 
-Application.prototype.messageBox = function (text, icon, caption) {
+Application.prototype.messageBox = function (text, icon, buttons, caption) {
     var messageBox = new Window(caption != undefined ? caption : 'Message Box', 400, 160);
     messageBox.destroyOnClose = true;
     this.addWindow(messageBox);
     var label = new Label(text, icon != undefined ? 52 : 15, 15);
     this.addItem(label, messageBox);
+    if (buttons != undefined) {
+        for (var i = 0; i < buttons.length; i++) {
+            messageBox.addItem(buttons[i]);
+            buttons[i].setPosition(i * 100 + 15, messageBox.getHeight() - 80);
+        }
+    }
+    else {
+        messageBox.addItem(new Button('OK', 15, messageBox.getHeight() - 80, function () { messageBox.close(); }));
+    }
     messageBox.e.addClass('messagebox');
     messageBox.e.addClass(icon);
     messageBox.setPosition(($(window).width() - messageBox.getWidth()) / 2, ($(window).height() - messageBox.getHeight()) / 2);
@@ -549,7 +567,7 @@ Application.prototype.addWindow = function (_window) {
 }
 
 Application.prototype.close = function () {
-    ProcessManager.killProcess(this.process_id);
+    System.ProcessManager.killProcess(this.process_id);
 }
 
 Application.prototype.writeFile = function (fileName, data, absolute) {
@@ -675,10 +693,10 @@ explorer.main = function () {
     this.addWindow(run);
     var input = new Input('text', 20, 15, 'app-name', '', { lolsdsd: 'xd' });
     this.addItem(input, run);
-    var runButton = new Button('Run', 210, 15, function () { ApplicationManager.run(ApplicationManager.getApplicationByName(input.getValue())); });
+    var runButton = new Button('Run', 210, 15, function () { data.ApplicationManager.run(data.ApplicationManager.getApplicationByName(input.getValue())); });
     this.addItem(runButton, run);
 
-    var runListButton = new Button('Run', 210, 50, function () { ApplicationManager.run(ApplicationManager.getApplicationByName(appList.getSelected().value)); });
+    var runListButton = new Button('Run', 210, 50, function () { data.ApplicationManager.run(data.ApplicationManager.getApplicationByName(appList.getSelected().value)); });
     this.addItem(runListButton, run);
 
     var arrAppList = [];
@@ -706,7 +724,7 @@ login.main = function () {
         this.usernameLbl = new Label('Username', 15, 20);
         this.passwordLbl = new Label('Password', 15, 55);
         this.loginBtn = new Button('Log in', 15, 90, function () {
-            UserManager.login(self.username.getValue(), self.password.getValue(), function (r) {
+            selfApp.UserManager.login(self.username.getValue(), self.password.getValue(), function (r) {
                 if (bool(r)) {
                     selfApp.close();
                     System.desktop.app.messageBox('Logged in successfully', 'tick');
@@ -740,7 +758,7 @@ login.main = function () {
         this.passwordLbl = new Label('Password', 15, 55);
         this.passwordConfirmLbl = new Label('Confirm Password', 15, 90);
         this.registerBtn = new Button('Sign up', 15, 130, function () {
-            UserManager.register(self.username.getValue(), self.password.getValue(), self.passwordConfirm.getValue(), function (r) {
+            selfApp.UserManager.register(self.username.getValue(), self.password.getValue(), self.passwordConfirm.getValue(), function (r) {
                 if (bool(r.success)) {
                     self.close();
                     login_window.setFocus();
@@ -771,29 +789,41 @@ Process = function (id, app) {
     this.id = id;
     this.app = app;
 }
-ProcessManager = { id_counter: 0, process_ids: [] };
-ProcessManager.getFreeId = function () {
+
+Process.prototype.getChildrenCount = function () {
+    var num = 0;
+    for (var i = 0; i < this.app.windows.length; i++) {
+        num += this.app.windows[i].getChildrenCount();
+    }
+    return num;
+}
+
+Process.prototype.kill = function () {
+    System.ProcessManager.killProcess(this.id);
+}
+
+System.ProcessManager.getFreeId = function () {
     this.id_counter++;
     this.process_ids.push(this.id_counter);
     return this.id_counter;
 }
 
-ProcessManager.getProcessIds = function () {
+System.ProcessManager.getProcessIds = function () {
     return this.process_ids;
 }
 
-ProcessManager.getProcessById = function (process_id) {
+System.ProcessManager.getProcessById = function (process_id) {
     for (var i = 0; i < System.Processes.length; i++) {
         if (System.Processes[i].id == process_id) return System.Processes[i];
     }
 }
 
-ProcessManager.killProcess = function (process_id) {
+System.ProcessManager.killProcess = function (process_id) {
     for (var i = 0; i < System.Processes.length; i++) {
         if (System.Processes[i].id == process_id) {
             for (var j = 0; j < System.Processes[i].app.windows.length; j++) {
                 //System.Processes[i].app.windows[j].close(); CZA NAPRAWIC
-                ApplicationManager.closeWindow(process_id, System.Processes[i].app.windows[j].getId());
+                System.ApplicationManager.closeWindow(process_id, System.Processes[i].app.windows[j].getId());
             }
             System.Processes.splice(i, 1);
             var index = this.process_ids.indexOf(process_id);
@@ -803,9 +833,7 @@ ProcessManager.killProcess = function (process_id) {
     }
 }
 
-ApplicationManager = {};
-
-ApplicationManager.load = function (app) {
+System.ApplicationManager.load = function (app) {
     var _app = app;
     for (var i = 0; i < System.Applications.length; i++) {
         if (System.Applications[i].name == _app.name) {
@@ -816,24 +844,24 @@ ApplicationManager.load = function (app) {
     System.Applications.push(_app);
 }
 
-ApplicationManager.closeWindow = function (process_id, window_id) {
+System.ApplicationManager.closeWindow = function (process_id, window_id) {
     $('[data-window-process-id=' + process_id + '][data-window-id=' + window_id + ']').fadeOut(System.Settings.fadeOutTime, function () {
         $(this).remove();
     });;
 }
 
-ApplicationManager.getApplicationByName = function (name) {
+System.ApplicationManager.getApplicationByName = function (name) {
     for (var i = 0; i < System.Applications.length; i++) {
         if (System.Applications[i].name == name) return System.Applications[i];
     }
     return false;
 }
 
-ApplicationManager.refresh = function () {
+System.ApplicationManager.refresh = function () {
 
     for (var i = 0; i < System.Processes.length; i++) {
-        var id = ProcessManager.getProcessIds()[i];
-        var process = ProcessManager.getProcessById(id);
+        var id = System.ProcessManager.getProcessIds()[i];
+        var process = System.ProcessManager.getProcessById(id);
 
         for (var j = 0; j < System.Processes[i].app.windows.length; j++) {
             var _window = System.Processes[i].app.windows[j];
@@ -841,15 +869,14 @@ ApplicationManager.refresh = function () {
             if (_window.maximized && _window.getPosition().x == 0 && _window.getPosition().y == 0) _window.e.find('.window-action-maximize').css('background-image', 'url("res/maximize2.png")');
             else
                 _window.e.find('.window-action-maximize').css('background-image', 'url("res/maximize.png")');
-
         }
     }
-    setTimeout(ApplicationManager.refresh, 1000 / System.Settings.applicationRefreshRate);
+    setTimeout(System.ApplicationManager.refresh, 1000 / System.Settings.applicationRefreshRate);
 }
 
-ApplicationManager.run = function (app) {
+System.ApplicationManager.run = function (app) {
     if (app) {
-        var id = ProcessManager.getFreeId();
+        var id = System.ProcessManager.getFreeId();
         var process = new Process(id, app);
         System.Processes.push(process);
         app.process_id = id;
