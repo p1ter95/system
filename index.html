@@ -85,9 +85,13 @@
                 border: 1px solid #ccc;
                 top: 0;
                 left: 0;
-                box-shadow:         0 0 30px 0px rgba(50, 50, 50, 0.6);
+                box-shadow: 0 0 7px 0px rgba(50, 50, 50, 0.6);
                 border-radius: 2px;
                 overflow: hidden;
+		    }
+
+		   .window.focus {
+                box-shadow: 0 0 30px 0px rgba(50, 50, 50, 0.6);
 		    }
 
 		    .window-name-div {
@@ -244,7 +248,24 @@
                 position: absolute;
 		    }
 
-            input[type=text], input[type=password]{
+		    progress {
+                position: absolute;
+		    }
+
+		    progress{
+                -webkit-appearance: none;
+                appearance: none;
+                width: 250px;
+                height: 20px;
+            }
+
+            progress[value]::-webkit-progress-bar {
+                background-color: #eee;
+                border-radius: 2px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25) inset;
+            }
+
+            input[type=text], input[type=password], input[type=file]{
                 padding: 7px;
                 border-radius: 3px;
                 background: white;
@@ -330,36 +351,12 @@
         <script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
         <script src="http://code.jquery.com/ui/1.11.1/jquery-ui.js"></script>
 		<script src="js/script.js"></script>
+        <script src="js/login.js"></script>
+        <script src="js/explorer.js"></script>
 	</head>
-	<body>
-        <!--<div id="login-box" class="window"><div class="window-name-div"><h1 class="window-name">Logowanie</h1></div>
-            <div class="window-content">
-                <table>
-                    <tr>
-                        <td>
-                            <label for="login-username">Username</label>
-                        </td>
-                        <td>
-                            <input type="text" id="login-username"/>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <label for="login-password">Password</label>
-                        </td>
-                        <td>
-                            <input type="password" id="login-password"/>
-                        </td>
-                    </tr>
-
-                </table>
-                
-                <button class="button">Login</button>
-            </div>
-            
-         </div>-->
-            
+	<body>           
         <div id="desktop">
+            <div id="taskbar"><span id="taskbar-time"></span></div>
             <div id="desktop-elements"></div>
         </div>
 	</body>
