@@ -24,25 +24,26 @@ explorer.main = function () {
     var appList = new List(arrAppList, 20, 50);
     run.addItem(appList);
 
-    var upload = new Window('Upload', 400, 200);
-    this.addWindow(upload);
+    this._upload = new Window('Upload', 400, 200);
+    this.addWindow(this._upload);
 
-    upload.designer = function () {
+    this._upload.designer = function () {
         var self = this;
         this.uploadInput = new Input('file', 15, 15, 'userfile');
         this.uploadBtn = new Button('Upload', 15, 100, function () { data.upload(self.uploadPath.getValue()); });
         this.uploadPath = new Input('text', 15, 60);
         this.uploadProgress = new Element('progress', 15, 140, { value: 0, max: 1 });
+        this.uploadProgress.e.attr('id', 'system-upload-progress');
         //this.e.append('<form id="lol" method="post" enctype="multipart/form-data"></form>');
-        //this.e.children('#lol').append(this.uploadInput.e);
-        self.addItem(this.uploadInput);
-        self.addItem(this.uploadBtn);
-        self.addItem(this.uploadPath);
-        self.addItem(this.uploadProgress);
+        //this.e.children('#lol').append(this.uploadInput.e)
+        this.addItem(this.uploadInput);
+        this.addItem(this.uploadBtn);
+        this.addItem(this.uploadPath);
+        this.addItem(this.uploadProgress);
     }
 
     run.open();
-    upload.open();
+    this._upload.open();
 }
 
 
