@@ -14,7 +14,7 @@ login.main = function () {
         this.passwordLbl = new Label('Password', 15, 55);
         this.loginBtn = new Button('Log in', 15, 90, function () {
             selfApp.UserManager.login(self.username.getValue(), self.password.getValue(), function (r) {
-                if (bool(r.success)) {
+                if (success(r)) {
                     selfApp.close();
                     System.desktop.app.messageBox('Logged in successfully', 'tick');
                 }
@@ -48,13 +48,13 @@ login.main = function () {
         this.passwordConfirmLbl = new Label('Confirm Password', 15, 90);
         this.registerBtn = new Button('Sign up', 15, 130, function () {
             selfApp.UserManager.register(self.username.getValue(), self.password.getValue(), self.passwordConfirm.getValue(), function (r) {
-                if (bool(r.success)) {
+                if (success(r)) {
                     self.close();
                     login_window.setFocus();
                     System.desktop.app.messageBox('Registered successfully', 'tick');
                 }
                 else {
-                    System.desktop.app.messageBox('Some errors occured:' + showErrors(r), 'error');
+                    System.desktop.app.messageBox('Some errors occured:' + showMessage(r), 'error');
                 }
             });
         });

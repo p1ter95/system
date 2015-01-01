@@ -219,6 +219,7 @@
 		    }
 
 		    .item {
+                position: relative;
                 float: left;
                 margin: 7px;
                 padding: 5px;
@@ -231,9 +232,21 @@
 		    }
 
 		    .item .desc {
+                position: absolute;
+                bottom: 5px;
                 font-size: 90%;
                 color: #9E9E9E;
 		    }
+
+            .item .text {
+                text-overflow: ellipsis;
+                overflow: hidden;
+		    }
+
+            .item.selected .text {
+                text-overflow: initial;
+		    }
+
 		    .item:hover {
                 cursor: pointer;
                 border: 1px solid #ccc;

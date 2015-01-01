@@ -4,6 +4,35 @@ explorer.main = function () {
     var data = this;
 
     var desktop = System.desktop;
+
+    
+    /*data.getFilenames('desktop', false, false, function (r) {
+        if (success(r)) {
+            for (var i = 0; i < r.data.length; i++) {
+                var file = r.data[i];
+                desktop.field.addItem(new Item(file, file, '', (function (s) {
+                    return function () { 
+                        data.openFile(s);
+                    };
+                })(file)));
+            }
+        }
+    });*/
+
+    data.getDirFileInfo('desktop', true, false, function (r) {
+        if (success(r)) {
+            var arr = [];
+            for (key in r.data) {
+                arr.push(new Item(r.data[key].name, r.data[key].name, bytesToSize(r.data[key].size), (function (s) {
+                    return function () {
+                        data.openFile(s);
+                    };
+                })(getUserPathByRelativePath(r.data[key].relative_path, true) + r.data[key].name)));
+            }
+            desktop.field.setItems(arr);
+        }
+    });
+    
     var run = new Window('Run', 400, 160);
     run.height = 150;
     run.width = 400;

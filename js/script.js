@@ -1,4 +1,8 @@
-﻿function bool(val) {
+﻿/*==============================================================
+MISC HELPER FUNCTIONS
+===============================================================*/
+
+function bool(val) {
     if (insensitiveCmp(val, 'true')) {
         return true;
     }
@@ -24,9 +28,34 @@ function showMessage(r) {
     return text;
 }
 
+function success(r) {
+    return bool(r.success);
+}
+
 function insensitiveCmp(str1, str2) {
     return str1.toUpperCase() == str2.toUpperCase();
 }
+
+function bytesToSize(bytes) {
+    if (bytes == 0) return '0 Byte';
+    var k = 1000;
+    var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    var i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes / Math.pow(k, i)).toPrecision(3) + ' ' + sizes[i];
+};
+
+function getUserPathByRelativePath(relative_path, trail) {
+    var urlChunks = relative_path.split('/');
+    var str = '';
+    for (var i = 2; i < urlChunks.length; i++) {
+        str += urlChunks[i] + '/';
+    }
+    return trail ? str : str.slice(0, -1) ;
+}
+
+/*==============================================================
+THE SYSTEM
+===============================================================*/
 
 System = {};
 
@@ -68,6 +97,8 @@ System.SettingsManager.init = function () {
 }
 
 System.Presets.init = function () {
+    System.Presets.OSName = 'System';
+    System.Presets.OSVersion = 0.01;
     System.Presets.controllerName = 'systemt';
 }
 
@@ -96,7 +127,7 @@ SETTINGS MANAGER
 
 System.SettingsManager.load = function () {
     System.desktop.app.readFile('settings.cfg', function (r) {
-        if (bool(r.success)) {
+        if (success(r)) {
             var obj = JSON.parse(r.data);
             for (name in obj) {
                 System.Settings[name] = obj[name];
@@ -195,7 +226,7 @@ System.ApplicationManager.run = function (app, system) {
         System.UserManager.getUsername(function (r) {
             var run_by = '';
             if (!system) {
-                if (bool(r.success)) {
+                if (success(r)) {
                     run_by = r.username;
                 }
                 else {
@@ -218,6 +249,7 @@ System.ApplicationManager.run = function (app, system) {
 
 System.ApplicationManager.addAutorunApp = function (appName) {
     var added = false;
+    var exists = false;
     for (var i = 0; i < System.Settings.autorun.length; i++) {
         if (System.Settings.autorun[i] == appName) {
             added = true;
@@ -225,7 +257,16 @@ System.ApplicationManager.addAutorunApp = function (appName) {
             break;
         }
     }
-    if (!added) {
+    for (var i = 0; i < System.Applications.length; i++) {
+        if (System.Applications[i].name == appName) {
+            exists = true;
+            break;
+        }
+    }
+    if (!exists) {
+        console.error(appName + ' isn\'t loaded');
+    }
+    else if (!added) {
         System.Settings.autorun.push(appName);
         console.info(appName + ' is added to Autorun');
         System.SettingsManager.save();
@@ -261,7 +302,6 @@ System.ApplicationManager.runAutorunApps = function () {
             }
         }
         if (repetitions >= timeout) clearInterval(id);
-        console.log('xd');
         repetitions++;
     }
     var id = setInterval(function () { check(id) }, time);
@@ -279,7 +319,7 @@ System.ApplicationManager.install = function (filePath, external) {
     }
     if (!installed) {
         System.UserManager.isLogged(function (r) {
-            if (bool(r.success)) {
+            if (success(r)) {
                 System.ApplicationManager.loadFile(filePath, external);
                 System.Settings.applicationSources.push({ filePath: filePath, external: external ? external : false });
                 System.SettingsManager.save();
@@ -328,7 +368,7 @@ System.ApplicationManager.loadFile = function (filePath, external) {
     if (!loaded) {
         if (!external) {
             System.desktop.app.readFile(filePath, function (r) {
-                if (bool(r.success)) {
+                if (success(r)) {
                     var app = document.createElement('script');
                     app.text = r.data;
                     app.setAttribute('data-app-path', filePath);
@@ -365,9 +405,10 @@ System.UserManager.login = function (username, password, callback) {
         dataType: 'json',
         cache: 'false',
         success: function (r) {
-            if (bool(r.success)) {
+            if (success(r)) {
                 if (bool(r.first_run)) {
                     System.desktop.app.createDirectory('apps');
+                    System.desktop.app.createDirectory('desktop');
                     System.SettingsManager.save();
                 }
                 else {
@@ -416,7 +457,7 @@ System.UserManager.register = function (username, password, password_conf, callb
         dataType: 'json',
         cache: 'false',
         success: function (r) {
-            if (bool(r.success)) {
+            if (success(r)) {
                 System.desktop.app.createDirectory(username, undefined, true);
             }
             if (callback != undefined) callback(r);
@@ -454,6 +495,8 @@ Desktop = function () {
     var data = this;
 
     this.field.e = $('#desktop-items');
+
+    $('title').html(System.Presets.OSName);
 
     this.setBackgroundColor = function (color) {
         this.e.css('background-color', color);
@@ -591,6 +634,9 @@ Item = function (name, val, desc, handler) {
     this.name = name;
     this.val = val;
     this.desc = desc;
+    /*this.handler = function () {
+        System.desktop.app.openFile(val);
+    }*/
     this.handler = handler;
 }
 
@@ -960,7 +1006,7 @@ Application.prototype.upload = function (path, callback) {
         processData: false,
         contentType: false,
         success: function (r) {
-            if (bool(r.success)) {
+            if (success(r)) {
                 System.desktop.app.messageBox('File uploaded successfully', 'tick');
             }
             else {
@@ -973,11 +1019,11 @@ Application.prototype.upload = function (path, callback) {
 }
 
 Application.prototype.downloadFile = function (fileName) {
-    window.location = '/' + System.Presets.controllerName + '/download_file/' + fileName;
+    window.location = '/' + System.Presets.controllerName + '/download_file/' + fileName.replace('/', '+');
 }
 
 Application.prototype.openFile = function (fileName) {
-    window.location = '/' + System.Presets.controllerName + '/open_file/' + fileName.replace('/', '+');
+    window.open('/' + System.Presets.controllerName + '/open_file/' + fileName.replace('/', '+'));
 }
 
 Application.prototype.writeFile = function (fileName, data, callback) {
@@ -1015,6 +1061,30 @@ Application.prototype.deleteFile = function (fileName, callback) {
         success: function (r) {
             if (callback != undefined) callback(r);
         }
+    });
+}
+
+Application.prototype.getFilenames  = function (path, include_path, recursion, callback) {
+    $.ajax({
+        async: false,
+        type: 'POST',
+        data: { get_filenames_path: path, get_filenames_include_path: (include_path ? include_path : false), get_filenames_recursion: (recursion ? recursion : false) },
+        url: '/' + System.Presets.controllerName + '/get_filenames',
+        dataType: 'json',
+        cache: 'false',
+        success: callback
+    });
+}
+
+Application.prototype.getDirFileInfo = function (path, top_level_only, recursion, callback) {
+    $.ajax({
+        async: false,
+        type: 'POST',
+        data: { get_dir_file_info_path: path, get_dir_file_info_top_level_only: (top_level_only ? top_level_only : false), get_dir_file_info_recursion: (recursion ? recursion : false) },
+        url: '/' + System.Presets.controllerName + '/get_dir_file_info',
+        dataType: 'json',
+        cache: 'false',
+        success: callback
     });
 }
 
