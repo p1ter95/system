@@ -23,7 +23,7 @@ explorer.main = function () {
         if (success(r)) {
             var arr = [];
             for (key in r.data) {
-                arr.push(new Item(r.data[key].name, r.data[key].name, bytesToSize(r.data[key].size), (function (s) {
+                arr.push(new Item(r.data[key].name, getUserPathByRelativePath(r.data[key].relative_path, true) + r.data[key].name, bytesToSize(r.data[key].size), (function (s) {
                     return function () {
                         data.openFile(s);
                     };
