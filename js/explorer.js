@@ -23,11 +23,11 @@ explorer.main = function () {
         if (success(r)) {
             var arr = [];
             for (key in r.data) {
-                arr.push(new Item(r.data[key].name, getUserPathByRelativePath(r.data[key].relative_path, true) + r.data[key].name, bytesToSize(r.data[key].size), (function (s) {
+                arr.push(new Item(r.data[key].name, data.getUserPathByServerPath(r.data[key].relative_path, true) + r.data[key].name, bytesToSize(r.data[key].size), (function (s) {
                     return function () {
                         data.openFile(s);
                     };
-                })(getUserPathByRelativePath(r.data[key].relative_path, true) + r.data[key].name)));
+                })(data.getUserPathByServerPath(r.data[key].relative_path, true) + r.data[key].name)));
             }
             desktop.field.setItems(arr);
         }
@@ -40,15 +40,18 @@ explorer.main = function () {
     this.addWindow(run);
     var input = new Input('text', 20, 15, 'app-name', '', { lolsdsd: 'xd' });
     run.addItem(input)
-    var runButton = new Button('Run', 210, 15, function () { data.ApplicationManager.run(data.ApplicationManager.getApplicationByName(input.getValue())); });
-    run.addItem(runButton)
+    this.runButton = new Button('Run', 210, 15, function () { data.ApplicationManager.run(data.ApplicationManager.getApplicationByName(input.getValue())); });
+    run.addItem(this.runButton);
+
+    this.tescik = 'xD';
+    this.runButton.addTooltip(this.tescik);
 
     var runListButton = new Button('Run', 210, 50, function () { data.ApplicationManager.run(data.ApplicationManager.getApplicationByName(appList.getSelected().value)); });
-    run.addItem(runListButton)
+    run.addItem(runListButton);
 
     var arrAppList = [];
     for (var i = 0; i < System.Applications.length; i++) {
-        arrAppList.push(new Option(System.Applications[i].name, System.Applications[i].name));
+        arrAppList.push(new Option(System.Applications[i].displayName, System.Applications[i].name));
     }
     var appList = new List(arrAppList, 20, 50);
     run.addItem(appList);
@@ -59,7 +62,7 @@ explorer.main = function () {
     this._upload.designer = function () {
         var self = this;
         this.uploadInput = new Input('file', 15, 15, 'userfile');
-        this.uploadBtn = new Button('Upload', 15, 100, function () { data.upload(self.uploadPath.getValue()); });
+        this.uploadBtn = new Button('Upload', 15, 100, function () { data.uploadFromDisk(self.uploadPath.getValue()); });
         this.uploadPath = new Input('text', 15, 60);
         this.uploadProgress = new Element('progress', 15, 140, { value: 0, max: 1 });
         this.uploadProgress.e.attr('id', 'system-upload-progress');

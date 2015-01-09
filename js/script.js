@@ -16,14 +16,16 @@ function bool(val) {
 
 function showMessage(r) {
     var text = '';
-    var errors = r.message;
-    if (typeof errors === 'object') {
-        for (var key in errors) {
-            text += '<div>' + errors[key] + '</div>';
+    if (r.message !== undefined) {
+        var errors = r.message;
+        if (typeof errors === 'object') {
+            for (var key in errors) {
+                text += '<div>' + errors[key] + '</div>';
+            }
         }
-    }
-    else {
-        text = '<div>' + errors + '</div>';
+        else {
+            text = '<div>' + errors + '</div>';
+        }
     }
     return text;
 }
@@ -44,19 +46,6 @@ function bytesToSize(bytes) {
     return (bytes / Math.pow(k, i)).toPrecision(3) + ' ' + sizes[i];
 }
 
-function isFile(pathname) {
-    return pathname.split('/').pop().split('.').length > 1;
-}
-
-function getUserPathByRelativePath(relative_path, trail) {
-    var urlChunks = relative_path.split('/');
-    var str = '';
-    for (var i = 2; i < urlChunks.length; i++) {
-        str += urlChunks[i] + '/';
-    }
-    return trail ? str : str.slice(0, -1) ;
-}
-
 /*==============================================================
 THE SYSTEM
 ===============================================================*/
@@ -70,12 +59,14 @@ System.UserManager = {};
 System.ProcessManager = { id_counter: 0, process_ids: [] };
 System.ApplicationManager = {};
 System.ServicesManager = {};
+System.IOManager = { mouse: {} };
 System.Applications = [];
 System.Processes = [];
 System.Services = [];
 
 System.Init = function () {
     this.SettingsManager.init();
+    this.IOManager.init();
     this.Presets.init();
     System.desktop = new Desktop();
     this.ApplicationManager.run(System.ApplicationManager.getApplicationByName('Explorer'), true);
@@ -91,11 +82,13 @@ System.SettingsManager.init = function () {
     System.Settings.fadeInTime = 200;
     System.Settings.fadeOutTime = 200;
     System.Settings.taskbarHeight = 40;
+    System.Settings.taskbarItemWidth = 100;
     System.Settings.desktopRefreshRate = 5;
     System.Settings.desktopBackgroundPath = '';
     System.Settings.defaultServicesFrequency = 5;
     System.Settings.autorun = ['Login'];
     System.Settings.autorunTimeout = 1;
+    System.Settings.defaultZIndex = 100;
     System.Settings.applicationRefreshRate = 5;
     System.Settings.applicationSources = [{filePath: '/system-apps/login.js', external: true}];
     System.Settings.applicationSettings = [];
@@ -116,6 +109,7 @@ Process = function (id, app, run_by) {
 Application = function (name) {
     this.process_id = 0;
     this.name = name;
+    this.displayName = name;
     this.info = {};
     this.info.description = 'Unknown';
     this.info.version = 1;
@@ -149,10 +143,14 @@ System.SettingsManager.load = function () {
             var obj = JSON.parse(r.data);
             for (var name in obj) {
                 System.Settings[name] = obj[name];
-            }       
+            }
         }
     });
     System.ApplicationManager.loadFromSettings();
+}
+
+System.SettingsManager.removeKey = function (keyName) {
+    return delete System.Settings[keyName];
 }
 
 System.SettingsManager.save = function () {
@@ -199,10 +197,13 @@ APPLICATION MANAGER
 ===============================================================*/
 
 System.ApplicationManager.load = function (app) {
-    for (var i = 0; i < System.Applications.length; i++) {
-        if (System.Applications[i].name == app.name) {
-            console.error('An app name conflict has occured with ' + app.name + '. \'2\' was appended to the name');
-            app.name += '2';
+    if (this.getApplicationByName(app.name)) {
+        for (var j = 1; ; j++) {
+            if (!this.getApplicationByName(app.name + j)) {
+                console.error("An app name conflict has occured with " + app.name + ". '" + j + "' was appended to the name");
+                app.name += j;
+                break;
+            }
         }
     }
     System.Applications.push(app);
@@ -389,9 +390,9 @@ System.ApplicationManager.loadFile = function (filePath, external, callback) {
     });
     var test = false;
     if (!loaded) {
-        if (isFile(filePath)) {      
+        if (System.desktop.app.isFile(filePath)) {      
             var app = document.createElement('script');
-            app.src = (external ? filePath : '/' + System.Presets.controllerName + '/open_file/' + filePath.replace('/', '+'));
+            app.src = (external ? filePath : '/' + System.Presets.controllerName + '/open_file/' + System.desktop.app.encodeURI(filePath));
             app.setAttribute('data-app-path', filePath);
             document.head.appendChild(app);
             console.info(fileName + ' loaded');
@@ -403,7 +404,7 @@ System.ApplicationManager.loadFile = function (filePath, external, callback) {
                     if (success(r)) {
                         for (var i = 0; i < r.data.length; i++) {
                             var app = document.createElement('script');
-                            app.src = '/' + System.Presets.controllerName + '/open_file/' + r.data[i].replace('/', '+');
+                            app.src = '/' + System.Presets.controllerName + '/open_file/' + System.desktop.app.encodeURI(r.data[i]);
                             app.setAttribute('data-app-path', filePath);
                             document.head.appendChild(app);
                             }
@@ -471,10 +472,10 @@ System.UserManager.logout = function (callback) {
     $.ajax({
         type: 'POST',
         url: '/' + System.Presets.controllerName + '/logout',
-        dataType: 'text',
+        dataType: 'json',
         cache: 'false',
-        success: function () {
-            System.SettingsManager.init();
+        success: function (r) {
+            if (success(r)) System.SettingsManager.init();     
             if (callback !== undefined) callback();
         }
     });
@@ -498,9 +499,6 @@ System.UserManager.register = function (username, password, password_conf, callb
         dataType: 'json',
         cache: 'false',
         success: function (r) {
-            if (success(r)) {
-                System.desktop.app.createDirectory(username, undefined, true);
-            }
             if (callback !== undefined) callback(r);
         }
     });
@@ -511,10 +509,13 @@ SERVICES MANAGER
 ===============================================================*/
 
 System.ServicesManager.load = function (service) {
-    for (var i = 0; i < System.Services.length; i++) {
-        if (System.Services[i].name == service.name) {
-            console.error('An service name conflict has occured with ' + service.name + '. \'2\' was appended to the name');
-            service.name += '2';
+    if (this.getServiceByName(service.name)) {
+        for (var j = 1; ; j++) {
+            if (!this.getServiceByName(service.name + j)) {
+                console.error("An service name conflict has occured with " + service.name + ". '" + j + "' was appended to the name");
+                service.name += j;
+                break;
+            }
         }
     }
     System.Services.push(service);
@@ -538,32 +539,56 @@ System.ServicesManager.stop = function (service) {
 }
 
 /*==============================================================
+IO MANAGER
+===============================================================*/
+
+System.IOManager.init = function () {
+    $(window).on('mousemove', function (e) {
+        System.IOManager.mouse.position = { x: e.pageX, y: e.pageY };
+    });
+}
+
+/*==============================================================
 DESKTOP
 ===============================================================*/
 
 Desktop = function () {
     this.e = $('#desktop');
     this.field = new ItemField(0, 0, 0, 0);
+    this.field.e = $('#desktop-items');
     this.taskbar = $('#taskbar');
+    this.time = $('#taskbar-time');
+    this.tooltip = $('#tooltip');
     this.app = null;
     var data = this;
-
-    this.field.e = $('#desktop-items');
 
     $('title').html(System.Presets.OSName);
 
     this.refresh = function () {
         this.e.css('height', $(window).height());
-        this.taskbar.children('#taskbar-time').html(this.getCurrentTime());
+        this.time.html(this.getCurrentTime());
         this.taskbar.css('height', System.Settings.taskbarHeight);
+        this.taskbar.children('.taskbar-app').css('width', System.Settings.taskbarItemWidth);
         this.field.e.css('height', $(window).height() - System.Settings.taskbarHeight);
         if (System.Settings.desktopBackgroundPath !== '') {
             this.e.css({
-                'background-image': "url('/" + System.Presets.controllerName + "/open_file/" + System.Settings.desktopBackgroundPath.replace('/', '+') + "')",
-                'background-size' :'100%'
+                'background-image': "url('/" + System.Presets.controllerName + "/open_file/" + System.desktop.app.encodeURI(System.Settings.desktopBackgroundPath) + "')",
+                'background-size': 'cover',
+                'background-repeat': 'no-repeat',
+                'background-position': 'right' //FIXME PLS
+            });
+        }
+        if (this.tooltip.css('display') != 'none') {
+            this.tooltip.css({
+                'top': System.IOManager.mouse.position.y + 10,
+                'left': System.IOManager.mouse.position.x + 35
             });
         }
         setTimeout(System.desktop.refresh.bind(this), 1000 / System.Settings.desktopRefreshRate);
+    }
+
+    this.getTaskbarElement = function (_window) {
+        return this.taskbar.children('.taskbar-app[data-window-process-id=' + _window.getProcessId() + '][data-window-id=' + _window.getId() + ']');
     }
 
     this.addTaskbarElement = function (_window) {
@@ -580,11 +605,7 @@ Desktop = function () {
     }
 
     this.removeTaskbarElement = function (_window) {
-        this.taskbar.find('.taskbar-app[data-window-process-id=' + _window.getProcessId() + '][data-window-id=' + _window.getId() + ']').remove();
-    }
-
-    this.setTaskbarElementCaption = function (_window, caption) {
-        this.taskbar.find('.taskbar-app[data-window-process-id=' + _window.getProcessId() + '][data-window-id=' + _window.getId() + ']').html(caption);
+        this.taskbar.children('.taskbar-app[data-window-process-id=' + _window.getProcessId() + '][data-window-id=' + _window.getId() + ']').remove();
     }
 
     this.getCurrentTime = function () {
@@ -640,6 +661,27 @@ Generic.prototype.setAttributes = function (attributes) {
 
 Generic.prototype.getAttribute = function (attribute) {
     return this.e.attr(attribute);
+}
+
+Generic.prototype.setTooltip = function (content) {
+    this.e.attr('data-tooltip', content);
+}
+
+Generic.prototype.addTooltip = function (content) {
+    this.e.attr('data-tooltip', content);
+    this.e.off('mouseover mouseout');
+    this.e.on('mouseover', function () {  
+        System.desktop.tooltip.html(this.e.attr('data-tooltip')).fadeIn(150);
+    }.bind(this));
+
+    this.e.on('mouseout', function () {
+        System.desktop.tooltip.fadeOut(150);
+    });
+}
+
+Generic.prototype.removeTooltip = function () {
+    this.e.off('mouseover mouseout');
+    this.e.removeAttr('data-tooltip');
 }
 
 Generic.prototype.on = function (events, selector, data, handler) {
@@ -879,7 +921,7 @@ Window.prototype.getId = function () {
 
 Window.prototype.setCaption = function (caption) {
     this.e.find('.window-name').html(caption);
-    System.desktop.setTaskbarElementCaption(this, caption);
+    System.desktop.getTaskbarElement(this).html(caption);
 }
 
 Window.prototype.getCaption = function () {
@@ -943,7 +985,7 @@ Window.prototype.close = function () {
         if (this.destroyOnClose) System.ApplicationManager.closeWindow(this.getProcessId(), this.getId());
         this.e.fadeOut(System.Settings.fadeOutTime);
         System.desktop.removeTaskbarElement(this);
-        this.e.find('.window-content').children().remove();
+        this.e.children('.window-content').children().remove();
     }
 };
 
@@ -987,8 +1029,15 @@ Window.prototype.getMainWindow = function (_window) {
 Window.prototype.setFocus = function (z_index) {
     $('.window').css('z-index', 0);
     $('.window').removeClass('focus');
-    this.e.css('z-index', z_index ? z_index : 100);
+    this.e.css('z-index', z_index ? z_index : System.Settings.defaultZIndex);
     this.e.addClass('focus');
+    if (this.showOnTaskbar) {
+        System.desktop.taskbar.children('.taskbar-app').removeClass('focus');
+        System.desktop.getTaskbarElement(this).addClass('focus');
+    }
+    else {
+        System.desktop.taskbar.children('.taskbar-app').removeClass('focus');
+    }
 }
 
 Window.prototype.getFocus = function () {
@@ -1060,7 +1109,9 @@ Application.prototype.addWindow = function (_window) {
                 handles: "n, e, s, w, ne, se, sw, nw",
                 resize: function () { if (_window.maximized) _window.maximized = false; },
                 minHeight: 50,
-                minWidth: 100
+                minWidth: 100,
+                maxHeight: $(window).height(),
+                maxWidth: $(window).width()
             })
         .on('mousedown', function () { _window.setFocus(); })
         .find('.window-action-close').on('click', function () {
@@ -1078,31 +1129,36 @@ Application.prototype.close = function () {
     System.ProcessManager.killProcess(this.process_id);
 }
 
-function progressHandlingFunction(e) {
+function handleProgressDisk(e) {
     if (e.lengthComputable) {
         $('#system-upload-progress').attr({ value: e.loaded, max: e.total });
     }
 }
 
-Application.prototype.upload = function (path, callback) {
+function handleProgressUrl(dlnow, dltotal) {
+        $('#system-upload-progress').attr({ value: dlnow, max: dltotal });  
+}
+
+Application.prototype.uploadFromDisk = function (path, overwrite, callback) {
     var data = new FormData();
     data.append('userfile', $('[name="userfile"]').prop('files')[0]);
     data.append('upload_path', path !== undefined ? path : '');
+    data.append('upload_overwrite', overwrite !== undefined ? overwrite : false);
     $.ajax({
         xhr: function () { 
-            var myXhr = $.ajaxSettings.xhr();
-            if (myXhr.upload) { 
-                myXhr.upload.addEventListener('progress', progressHandlingFunction, false);
+            var xhr = $.ajaxSettings.xhr();
+            if (xhr.upload) { 
+                xhr.upload.addEventListener('progress', handleProgressDisk, false);
             }
-            return myXhr;
+            return xhr;
         },
-        url: '/' + System.Presets.controllerName + '/upload',
+        url: '/' + System.Presets.controllerName + '/uploadFromDisk',
         type: 'POST',
         dataType: 'json',
         data: data,
         cache: false,
         beforeSend: function () {
-            $('progress').attr({ value: 0, max: 1 });
+            $('#system-upload-progress').attr({ value: 0, max: 1 });
         },
         processData: false,
         contentType: false,
@@ -1112,19 +1168,38 @@ Application.prototype.upload = function (path, callback) {
             }
             else {
                 System.desktop.app.messageBox('An error occurred while trying to upload the file' + showMessage(r), 'error');
-                $('progress').attr({ value: 0, max: 1 });
+                $('#system-upload-progress').attr({ value: 0, max: 1 });
             }
             if(callback !== undefined) callback(r);
         }
     });
 }
 
+Application.prototype.uploadFromUrl = function (url, path, overwrite, callback) {
+    $.ajax({
+        url: '/' + System.Presets.controllerName + '/uploadFromUrl',
+        type: 'POST',
+        dataType: 'json',
+        data: { upload_url: url, upload_path: path !== undefined ? path : '', upload_overwrite: overwrite !== undefined ? overwrite : false },
+        cache: false,
+        success: function (r) {
+            if (success(r)) {
+                System.desktop.app.messageBox('File uploaded successfully', 'tick');
+            }
+            else {
+                System.desktop.app.messageBox('An error occurred while trying to upload the file' + showMessage(r), 'error');
+            }
+            if (callback !== undefined) callback(r);
+        }
+    });
+}
+
 Application.prototype.downloadFile = function (fileName) {
-    window.location = '/' + System.Presets.controllerName + '/download_file/' + fileName.replace('/', '+');
+    window.location = '/' + System.Presets.controllerName + '/download_file/' + System.desktop.app.encodeURI(fileName);
 }
 
 Application.prototype.openFile = function (fileName) {
-    window.open('/' + System.Presets.controllerName + '/open_file/' + fileName.replace('/', '+'));
+    window.open('/' + System.Presets.controllerName + '/open_file/' + System.desktop.app.encodeURI(fileName));
 }
 
 Application.prototype.writeFile = function (fileName, data, callback) {
@@ -1139,7 +1214,6 @@ Application.prototype.writeFile = function (fileName, data, callback) {
 
 Application.prototype.readFile = function (fileName, callback) {
     $.ajax({
-        async: false,
         type: 'POST',
         data: { read_file_name: fileName },
         url: '/' + System.Presets.controllerName + '/read_file',
@@ -1151,7 +1225,6 @@ Application.prototype.readFile = function (fileName, callback) {
 
 Application.prototype.deleteFile = function (fileName, callback) {
     $.ajax({
-        async: false,
         type: 'POST',
         data: { delete_file_name: fileName },
         url: '/' + System.Presets.controllerName + '/delete_file',
@@ -1163,9 +1236,21 @@ Application.prototype.deleteFile = function (fileName, callback) {
     });
 }
 
+Application.prototype.duplicateFile = function (filePath, destination, callback) {
+    $.ajax({
+        type: 'POST',
+        data: { duplicate_file_name: filePath, duplicate_destination: destination },
+        url: '/' + System.Presets.controllerName + '/duplicate_file',
+        dataType: 'json',
+        cache: 'false',
+        success: function (r) {
+            if (callback !== undefined) callback(r);
+        }
+    });
+}
+
 Application.prototype.getFilenames  = function (path, include_path, recursion, callback) {
     $.ajax({
-        async: false,
         type: 'POST',
         data: { get_filenames_path: path, get_filenames_include_path: (include_path ? include_path : false), get_filenames_recursion: (recursion ? recursion : false) },
         url: '/' + System.Presets.controllerName + '/get_filenames',
@@ -1177,7 +1262,6 @@ Application.prototype.getFilenames  = function (path, include_path, recursion, c
 
 Application.prototype.getDirFileInfo = function (path, top_level_only, recursion, callback) {
     $.ajax({
-        async: false,
         type: 'POST',
         data: { get_dir_file_info_path: path, get_dir_file_info_top_level_only: (top_level_only ? top_level_only : false), get_dir_file_info_recursion: (recursion ? recursion : false) },
         url: '/' + System.Presets.controllerName + '/get_dir_file_info',
@@ -1187,14 +1271,31 @@ Application.prototype.getDirFileInfo = function (path, top_level_only, recursion
     });
 }
 
-Application.prototype.createDirectory = function (path, mode, absolute, callback) {
+Application.prototype.createDirectory = function (path, mode, callback) {
     $.ajax({
         type: 'POST',
-        data: { create_dir_path: path, create_dir_mode: (mode !== undefined ? mode : 0700), create_dir_absolute: (absolute !== undefined ? true : '') },
+        data: { create_dir_path: path, create_dir_mode: (mode !== undefined ? mode : 0700) },
         url: '/' + System.Presets.controllerName + '/create_dir',
         cache: 'false',
         success: callback
     });
+}
+
+Application.prototype.encodeURI = function (path) {
+    return path.replace('/', '+');
+}
+
+Application.prototype.isFile = function(path) {
+    return path.split('/').pop().split('.').length > 1;
+}
+
+Application.prototype.getUserPathByServerPath = function(path, trailing) {
+    var urlChunks = path.split('/');
+    var str = '';
+    for (var i = 2; i < urlChunks.length; i++) {
+        str += urlChunks[i] + '/';
+    }
+    return trailing ? str : str.slice(0, -1);
 }
 
 Application.prototype.saveSettings = function (settings) {
@@ -1250,7 +1351,7 @@ Service.prototype.stop = function () {
 }
 
 window.onerror = function (error, url, line) {
-    System.desktop.app.messageBox(error, 'error', 'Error');
+    System.desktop.app.messageBox(error + ' in ' + url + ' at ' + line, 'error', 'Error');
 };
 
 //console.error = function (error) { System.desktop.app.messageBox(error, 'error', 'Error'); };
