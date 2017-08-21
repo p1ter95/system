@@ -1,15 +1,17 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 	<head>
 		<title></title>
 		<style>
-             @import url(http://fonts.googleapis.com/css?family=Arimo:400,700,400italic,700italic);
-             @import url(http://fonts.googleapis.com/css?family=Noto+Sans:400,700,400italic,700italic);
-             @import url(http://fonts.googleapis.com/css?family=Roboto:400,700,700italic,400italic);
+            /*@import url(http://fonts.googleapis.com/css?family=Arimo:400,700,400italic,700italic);           
+            @import url(http://fonts.googleapis.com/css?family=Roboto:400,700,700italic,400italic);*/
+            @import url(http://fonts.googleapis.com/css?family=Noto+Sans:400,700,400italic,700italic);
+            
 		    * {
                 box-sizing: border-box;
                 -moz-box-sizing: border-box;
 		    }
+
 		    body {
                 position: fixed;
                 padding: 0;
@@ -29,46 +31,72 @@
                 border: 1px solid #555555;
 	            border-radius: 3px;
                 background: linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%,rgba(242, 242, 242, 1) 100%);                      
-                box-shadow: 3px 3px 10px -1px rgba(50, 50, 50, 0.75);               
+                box-shadow: 3px 3px 10px -1px rgba(50, 50, 50, 0.75); 
                 color: #555555;
                 font-size: 13px;
-                z-index: 999999;
+                z-index: 9999999999999;
             }
 
 		    #selection {
                 position: absolute;
                 border: 1px dotted #FF8900;
                 background: rgba(255, 137, 0, 0.4);
+                z-index: 1;
 		    }
 
 		    #dekstop {
                 position: relative;
 		    }
 
+		    #desktop-items {
+                background: initial;
+                border: initial;
+		    }
+
+            /*
+            TASKBAR
+            */
+
 		    #taskbar {
                 position: fixed;
                 left: 0;
                 right: 0;
                 bottom: 0;
+                height: 40px;
                 border: 1px solid #BDBDBD;
-                z-index: 999;
+                z-index: 998;
                 box-shadow: 0 0 50px -8px rgba(50, 50, 50, 0.3), inset 0px 1px 0px 0px rgba(255, 255, 255, 0.5);
-                background: rgba(242, 242, 242, 0.5); /*#F2F2F2*/
+                /*background-color: rgba(242, 242, 242, 0.5); #F2F2F2*/
 		    }
+
+            #taskbar .taskbar-menu {
+                padding: 0 10px;
+                display: inline-block;
+                overflow: hidden;
+                line-height: 40px;
+            }
+
+            #taskbar .taskbar-menu:hover {
+                text-shadow: 0px 1px 5px #FF8900;
+                cursor: pointer;
+            }
 
 		    #taskbar .taskbar-app {
                 display: inline-block;
-                position: relative;
                 width: 100px;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
+                line-height: 40px;
                 border: 1px solid #BDBDBD;
-                border-width: 0 1px 1px 0;
-                padding: 10px;
-                background: white;
+                border-width: 0 1px 0 0;
+                padding: 0 10px;
                 font-size: 110%;
 		    }
+
+            #taskbar .taskbar-app:first-child {
+                border-left-width: 1px;
+            }
 
             #taskbar #taskbar-time {
                 position: absolute;
@@ -77,22 +105,27 @@
                 bottom: 0;
                 right: 0;
                 padding: 10px;
-                background: white;
+                background: rgba(215,215,215,0.5);
                 font-size: 110%;
+                z-index: 1;
 		    }
 
 		    #taskbar .taskbar-app.focus {
-                background: linear-gradient(to bottom, white 0%,#F2F2F2 100%);
+                background: linear-gradient(to bottom, rgba(255,255,255,0.7) 0%,rgba(215,215,215,0.7) 100%);
 		    }
 
             #taskbar .taskbar-app:hover {
                 cursor: pointer;
-                background: linear-gradient(to bottom, white 0%,#F2F2F2 100%);
+                background: linear-gradient(to bottom, rgba(255,255,255,0.7) 0%,rgba(200,200,200,0.7) 100%);
 		    }
 
             #taskbar .taskbar-app:active {
                 top: 1px;
 		    }
+
+            /*
+            WINDOW
+            */
 
 		    .window {
                 position: absolute;        
@@ -101,34 +134,36 @@
                 border: 1px solid #BDBDBD; /*#ccc*/
                 box-shadow: 0 0 7px 0px rgba(50, 50, 50, 0.3);
                 border-radius: 2px;
-                overflow: hidden;
+                background: rgba(219, 219, 219, 0.7); /*#DBDBDB*/
+				z-index: 0;
 		    }
 
 		    .window.focus {
                 box-shadow: 0 0 30px 0px rgba(50, 50, 50, 0.6);
 		    }
 
-		    .window-name-div {
-                padding: 5px;
-                border-bottom: 1px solid #BDBDBD;
+		    .window-caption {
+                height: 35px;
+                padding: 7px 5px;
                 position: relative;
-                background: rgba(219, 219, 219, 0.8); /*#DBDBDB*/
 		    }
 
 		    .window-name {
-                font: normal normal normal 14px 'Noto Sans';
+                font: normal normal normal 15px 'Noto Sans';
                 text-shadow: 0px 0px 10px rgba(255, 255, 255, 1);
                 margin: 0;
 		    }
 
             .window-content {
                 position: absolute;
-                top: 30px;
+                top: 35px;
                 left: 0;
                 right: 0;
                 bottom: 0;
-                padding: 10px;
+                border: 1px solid #BDBDBD;
+                margin: 0 5px 5px 5px;
                 background: #F2F2F2;
+                overflow: hidden;
 		    }
 
 		    .window-action {
@@ -143,20 +178,12 @@
 
             .window-action-minimize {
                 background: url('res/minimize.png') center center no-repeat;
-                right: 40px;
-		    }
-
-            .window[data-allow-minimizing=false] .window-action-minimize {
-                opacity: 0.5;
+                right: 44px;
 		    }
 
             .window-action-maximize {
                 background: url('res/maximize.png') center center no-repeat;
-                right: 20px;
-		    }
-
-            .window[data-allow-maximizing=false] .window-action-maximize {
-                opacity: 0.5;
+                right: 22px;
 		    }
 
             .window-action-close {
@@ -164,15 +191,85 @@
                 right: 0;
 		    }
 
-            .window[data-allow-closing=false] .window-action-close {
-                opacity: 0.5;
-		    }
-
 		    .window-action:hover {
                cursor: pointer
 		    }
+			
+			.window h1, p {
+				cursor: default;
+			}
 
-		    .window .button {
+            .window-content img {
+                position: absolute;
+            }
+
+            /*
+            MESSAGEBOX
+            */
+
+            .window.messagebox .window-content {
+                background-repeat: no-repeat;
+                background-position: 10px 10px;
+                word-wrap: break-word;
+            }
+
+            .window.messagebox.icon .window-content {
+                padding-left: 52px;
+            }
+
+            .window.messagebox.error .window-content{
+                background-image: url('res/error-icon.png');
+            }
+
+            .window.messagebox.warning .window-content{
+                background-image: url('res/warning-icon.png');
+            }
+
+            .window.messagebox.question_mark .window-content {
+                background-image: url('res/question-mark-icon.png');
+            }
+
+            .window.messagebox.info .window-content{
+                background-image: url('res/info-icon.png');
+            }
+
+            .window.messagebox.tick .window-content{
+                background-image: url('res/tick-icon.png');
+            }
+
+            /*
+            MENU STRIP
+            */
+
+            .window .menustrip {
+                margin: 0;
+                padding: 0;
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                list-style: none;
+                background-color: white;
+                border-bottom: 1px solid #BDBDBD;
+            }
+
+            .window .menustrip .menu {
+                display: inline-block;
+                padding: 7px 10px;
+                border: 1px solid transparent;
+                border-radius: 3px;
+            }
+
+            .window .menustrip .menu:hover {
+                background-color: #F2F2F2;
+                cursor: pointer;
+            }
+
+            /*
+            BUTTON
+            */
+
+		    .window button {
                 position: absolute;
                 padding: 7px;
                 border-radius: 3px;
@@ -182,70 +279,76 @@
                 font-size: 13px;
 		    }
 
-		    .window .button:hover {
+		    .window button img {
+                position: static;
+                vertical-align: middle;
+		    }
+
+            .window button .text {
+                vertical-align: middle;
+		    }
+
+		    .window button:hover {
                 border-color: #C7C7C7;
 		        background: #EBEBEB;
 		     }
 
-		    .window .button:active {
-		        border-color: black;
+		    .window button:active {
+		        outline: black solid 1px;
             }
 
-		    .window.messagebox .window-content {
-                background-repeat: no-repeat;
-                background-position: 10px 10px;
-                word-wrap: break-word;
-		    }
+            .window button:focus:not(:active), .window select:focus, input:focus, textarea:focus {
+                outline: #FF8900 solid 1px;
+            }
 
-		    .window.messagebox.icon .window-content {
-                padding-left: 52px;
-		    }
+            /*
+            SELECT LIST
+            */
 
-            .window.messagebox.error .window-content{
-                background-image: url('res/error-icon.png');
-		    }
-
-            .window.messagebox.warning .window-content{
-                background-image: url('res/warning-icon.png');
-		    }
-
-            .window.messagebox.question_mark .window-content {
-                background-image: url('res/question-mark-icon.png');
-		    }
-
-		    .window.messagebox.info .window-content{
-                background-image: url('res/info-icon.png');
-		    }
-
-            .window.messagebox.tick .window-content{
-                background-image: url('res/tick-icon.png');
-		    }
-
-            .window .select-list:not([multiple]){
-                border:1px solid #BDBDBD;
+            .window select:not([multiple]) {
                 position: absolute;
+                border: 1px solid #BDBDBD;
                 border-radius: 3px;
-                padding: 5px;
+                padding: 6px;
 		    }
 
-            .window .select-list[multiple]{
-                border:1px solid #BDBDBD;
+            .window select[multiple]{
                 position: absolute;
+                border: 1px solid #BDBDBD;
                 border-radius: 3px;
 		    }
 
-		    .window .select-list option {
+		    .window select option {
                 padding: 5px;
 		    }
+
+            .window select:focus {
+                outline: #FF8900 solid 1px;
+            }
+
+            /*
+            ITEM FIELD
+            */
 
 		    .item-field {
+                position: absolute;
+                margin: 0;
+                padding: 0;
+                list-style: none;
                 border: 1px solid #BDBDBD;
                 background: white;
+                overflow-y: auto;
+                overflow-x: hidden;
 		    }
 
-		    .item {
-                position: relative;
-                float: left;
+            #desktop > .item-field .text {
+                color: white;
+                /*text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;*/
+                text-shadow: 1.5px 1.5px 1px rgba(0, 0, 0, 1);
+            }
+			
+			.item-field .item {
+				position: relative;
                 margin: 7px;
                 padding: 5px;
                 width: 64px;
@@ -257,42 +360,79 @@
                 -webkit-user-select: none;
                 -ms-user-select: none;
                 user-select: none;
+				white-space: nowrap;
 		    }
 
-		    .item .desc {
-                position: absolute;
-                bottom: 5px;
-                font-size: 90%;
-                color: #9E9E9E;
+            .item-field[data-view=tiles] .item .size {
+                display: none;
+            }
+			
+		    .item-field[data-view=tiles] .item {
+                position: relative;
+                float: left;
+                background: center 5px no-repeat;
+                background-size: 32px 32px;
+		    }
+			
+			.item-field[data-view=list] .item {
+                padding: 5px 3px 5px 35px;
+                width: auto;
+                height: 32px;
+                background: 3px center no-repeat;
+				background-size: 25px 25px;
 		    }
 
-            .item .text {
-                text-overflow: ellipsis;
-                overflow: hidden;
-		    }
-
-            .item.selected .text {
-                text-overflow: initial;
-		    }
-
-		    .item:hover {
-                background: linear-gradient(to bottom, rgba(255, 255, 255, 0.5) 0%,rgba(242, 242, 242, 0.5) 100%);
+            .item-field .item:hover {
+                background-color: rgba(242, 242, 242, 0.5);
                 cursor: pointer;
                 border: 1px solid #ccc;
 		    }
 
-            .item.selected{
-                background: linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%,rgba(242, 242, 242, 1) 100%);
+            .item-field .item.selected{
+                background-color: rgba(242, 242, 242, 1);
                 border: 1px solid #ccc;
 		    }
+
+		    .item-field .item .desc {
+                display: none;
+                /*position: absolute;
+                bottom: 5px;
+                font-size: 90%;
+                color: #9E9E9E;*/
+		    }
+
+            .item-field[data-view=tiles] .item .text {
+                text-overflow: ellipsis;
+                overflow: hidden;
+                /*white-space: nowrap;*/
+                position: relative;
+                font-size: 14px;
+                top: 37px;
+		    }
+			
+			.item-field[data-view=list] .item .size {
+                position: absolute;
+				right: 3px;
+		    }
+
+            .item-field[data-view=tiles] .item.selected .text {
+                overflow: initial;
+                white-space: normal;
+                word-break: break-word;
+                z-index: 1;
+		    }
+
+            /*
+            TABS
+            */
 
 		    .tabs {
                 position: absolute;
 		    }
 
             .tabs-links::after {
-                display:block;
-                clear:both;
+                display: block;
+                clear: both;
                 content:'';
             }
 
@@ -311,7 +451,7 @@
             }
  
             .tabs-links a {
-                padding:9px 15px;
+                padding: 9px 15px;
                 display: inline-block;
                 font-size:16px;
                 text-decoration: none;
@@ -332,21 +472,36 @@
 
             .tabs-content {
                 position: relative;
-                padding: 15px;
                 background: linear-gradient(to bottom, rgba(242, 242, 242, 1) 0%, rgba(255, 255, 255, 1) 100%);
                 border: 1px solid #BDBDBD;
                 overflow: hidden;
             }
 
+            /*
+            INPUT
+            */
+
 		    input {
                 position: absolute;
 		    }
+
+            input[type=text], input[type=password], input[type=file], textarea {
+                padding: 7px;
+                border-radius: 3px;
+                background: white;
+                border: 1px solid #BDBDBD;
+                font-size: 13px;
+            }
+
+            /*
+            PROGRESS
+            */
 
 		    progress {
                 position: absolute;
 		    }
 
-		    progress{
+		    progress {
                 -webkit-appearance: none;
                 appearance: none;
                 width: 250px;
@@ -359,18 +514,100 @@
                 box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25) inset;
             }
 
-            input[type=text], input[type=password], input[type=file]{
-                padding: 7px;
-                border-radius: 3px;
-                background: white;
-                border:1px solid #BDBDBD;
-                font-size: 13px;
-		    }
+            /*
+            TEXTAREA
+            */
 
-		    .window-content p {
-                margin: 0;
+            .textarea {
                 position: absolute;
-		    }
+            }
+
+            .textarea textarea {
+                width: 100%;
+                height: 100%;
+            }
+
+            /*
+            LABEL
+            */
+
+            label {
+                position: absolute;
+            }
+
+            /*
+            CONTEXT MENU
+            */
+
+            .contextmenu ul {
+                position: absolute;
+                border-radius: 2px;
+                margin: 0;
+                padding: 0;
+                left: 100%;
+                display: inline-block;
+                list-style: none;
+                border: 1px solid #BDBDBD;
+                box-shadow: 3px 3px 10px -1px rgba(50, 50, 50, 0.75); 
+                z-index: 999;
+                background-color: white;
+            }
+
+            .contextmenu ul ul {
+                display: none;
+            }
+
+            .contextmenu.downwards ul ul {
+                top: 0;
+            }
+
+            .contextmenu.upwards ul ul {
+                bottom: -1px;
+            }
+
+            .contextmenu ul li:hover > ul
+            {
+                display: block;
+            }
+
+            .contextmenu li {
+                padding: 7px 60px 7px 22px;
+                white-space: nowrap;
+                position: relative;
+            }
+
+            .contextmenu li.disabled {
+                color: #ccc;
+            }
+
+            .contextmenu li.disabled:hover {
+                cursor: default;
+            }
+
+            .contextmenu li:hover {
+                background-color: rgba(242, 242, 242, 1);
+                cursor: pointer;
+            }
+
+            .contextmenu li.checked {
+                background-image: url('res/tick-small.png');
+                background-position: 3px center;
+                background-repeat: no-repeat;
+            }
+
+            .contextmenu li.bold {
+                font-weight: bold;
+            }
+
+            .contextmenu li.expand {
+                background-image: url('res/arrow-right-small.png');
+                background-position: right 3px center;
+                background-repeat: no-repeat;
+            }
+
+            /*
+            JQUERY UI RESIZABLE
+            */
             
             .ui-resizable-handle {
 	            position: absolute;
@@ -384,28 +621,28 @@
             }
             .ui-resizable-n {
 	            cursor: n-resize;
-	            height: 7px;
+	            height: 10px;
 	            width: 100%;
 	            top: -5px;
 	            left: 0;
             }
             .ui-resizable-s {
 	            cursor: s-resize;
-	            height: 7px;
+	            height: 10px;
 	            width: 100%;
 	            bottom: -5px;
 	            left: 0;
             }
             .ui-resizable-e {
 	            cursor: e-resize;
-	            width: 7px;
+	            width: 10px;
 	            right: -5px;
 	            top: 0;
 	            height: 100%;
             }
             .ui-resizable-w {
 	            cursor: w-resize;
-	            width: 7px;
+	            width: 10px;
 	            left: -5px;
 	            top: 0;
 	            height: 100%;
@@ -413,43 +650,42 @@
 
             .ui-resizable-se {
 	            cursor: se-resize;
-	            width: 12px;
-	            height: 12px;
+	            width: 10px;
+	            height: 10px;
 	            right: 1px;
 	            bottom: 1px;
             }
             .ui-resizable-sw {
 	            cursor: sw-resize;
-	            width: 9px;
-	            height: 9px;
+	            width: 10px;
+	            height: 10px;
 	            left: -5px;
 	            bottom: -5px;
             }
             .ui-resizable-nw {
 	            cursor: nw-resize;
-	            width: 9px;
-	            height: 9px;
+	            width: 10px;
+	            height: 10px;
 	            left: -5px;
 	            top: -5px;
             }
             .ui-resizable-ne {
 	            cursor: ne-resize;
-	            width: 9px;
-	            height: 9px;
+	            width: 10px;
+	            height: 10px;
 	            right: -5px;
 	            top: -5px;
             }
 		</style>
 
-        <script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
-        <script src="http://code.jquery.com/ui/1.11.2/jquery-ui.min.js"></script>
+        <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+        <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+        <script src="js/serialize.js"></script>
+        <script src="js/fileicons.js"></script>
 		<script src="js/script.js"></script>
 
 	</head>
 	<body>           
-        <div id="desktop">
-            <div id="tooltip"></div>
-            
-        </div>
+        <div id="desktop"></div>
 	</body>
 </html>
