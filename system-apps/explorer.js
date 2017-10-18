@@ -1,4 +1,4 @@
-﻿explorer = new Application('Explorer');
+explorer = new Application('Explorer');
 
 uploadDesigner = function () {
     var self = this;
@@ -10,6 +10,7 @@ uploadDesigner = function () {
         app.browseDirectoryDialog(function (r) { self.uploadPathDisk.setValue(r) });
     });
     this.uploadPathDisk = new Input('text', 95, 60);
+    this.uploadPathDisk.setWidth(170);
     this.overwriteLabelDisk = new Label(System.Lang.explorer.uploadApp.overwrite, 15, 95);
     this.uploadOverwriteDisk = new Input('checkbox', 97, 95);
     this.uploadBtnDisk = new Button(System.Lang.explorer.uploadApp.uploadBtn, 15, 120, function () {
@@ -33,6 +34,7 @@ uploadDesigner = function () {
         app.browseDirectoryDialog(function (r) { self.uploadPathUrl.setValue(r) });
     });
     this.uploadPathUrl = new Input('text', 95, 60);
+    this.uploadPathUrl.setWidth(170);
     this.overwriteLabelUrl = new Label(System.Lang.explorer.uploadApp.overwrite, 15, 95);
     this.overwriteUrl = new Input('checkbox', 97, 95);
     this.uploadBtnUrl = new Button(System.Lang.explorer.uploadApp.uploadBtn, 15, 130, function () {
@@ -107,24 +109,32 @@ function populate(r) {
     var app = this.app;
     var self = this;
     if (r) {
-        for (var key in r) {
-            var item = new Item({ name: r[key].name, path: app.uri.getUserDirectory(r[key].relative_path, true) + r[key].name, size: bytesToSize(r[key].size) }, (function (s) {
-                return function () {
-                    if (app.uri.isFile(s)) {
-                        app.fileSystem.file.open(s);
-                    }
-                    else {
-                        app.fileSystem.directory.getFilesInfo(s, true, populate.bind(self));
-						if(self.currentPath !== undefined) self.currentPath.setValue(s);
-                        self.setCaption(s !== '' ? app.uri.getDirectoryName(s) : System.Lang.explorer.fileExplorer.caption);
-                    }
-                };
-            })(app.uri.getUserDirectory(r[key].relative_path, true) + r[key].name));
+        for (let key in r) {
+            var item = new Item({ name: r[key].name, path: app.uri.getUserDirectory(r[key].relative_path, true) + r[key].name, size: app.fileSystem.bytesToSize(r[key].size) }, function (s) {
+                var s = app.uri.getUserDirectory(r[key].relative_path, true) + r[key].name;
+                if (app.uri.isFile(s)) {
+                    app.fileSystem.file.open(s);
+                }
+                else {
+                    app.fileSystem.directory.getFilesInfo(s, true, populate.bind(self));
+					if(self.currentPath !== undefined) self.currentPath.setValue(s);
+                    self.setCaption(s !== '' ? app.uri.getDirectoryName(s) : System.Lang.explorer.fileExplorer.caption);
+                }
+            }.bind(r[key]),
+            function () {
+                self.itemsSelectedLabel.setHtml('');
+            });
             item.e.css('background-image', getIconByFileExtension(app.uri.getExtension(r[key].name)));
-            item.addTooltip('<div>' + System.Lang.explorer.fileExplorer.fileName + ': ' + r[key].name + '</div>' + (app.uri.isFile(r[key].name) ? '<div>' + System.Lang.explorer.fileExplorer.fileSize + ': ' + bytesToSize(r[key].size) : '') + '</div><div>' + System.Lang.explorer.fileExplorer.fileModDate + ': ' + new Date(r[key].date * 1000).toUTCString());
+            item.addTooltip('<div>' + System.Lang.explorer.fileExplorer.fileName + ': ' + r[key].name + '</div>' + (app.uri.isFile(r[key].name) ? '<div>' + System.Lang.explorer.fileExplorer.fileSize + ': ' + app.fileSystem.bytesToSize(r[key].size) : '') + '</div><div>' + System.Lang.explorer.fileExplorer.fileModDate + ': ' + new Date(r[key].date * 1000).toLocaleString(System.Lang.code));
             //if(app.uri.isFile(r[key].name)) item.addContextMenu(System.desktop.fileContextMenu, {filePath: app.uri.getUserDirectory(r[key].relative_path, true) + r[key].name, _window: self, itemField: self.field});
-            System.desktop.addContextMenu(item, {filePath: app.uri.getUserDirectory(r[key].relative_path, true) + r[key].name, _window: self, itemField: self.field});
+            System.desktop.addContextMenu(item, {filePath: app.uri.getUserDirectory(r[key].relative_path, true) + r[key].name, app: app, itemField: self.field, refresh: function() {
+                explorer.refresh(self);
+            }});
             arr.push(item);
+        }
+        if(self.itemsCountLabel !== undefined) {
+            let count = Object.keys(r).length;
+            self.itemsCountLabel.setHtml(count == 1 ? System.Lang.explorer.fileExplorer.itemsCountOne.format(count) : System.Lang.explorer.fileExplorer.itemsCount.format(count));
         }
     }
     this.field.setItems(arr);
@@ -132,6 +142,43 @@ function populate(r) {
 
 explorer.refresh = function(_window) {
     explorer.fileSystem.directory.getFilesInfo(_window.currentPath.getValue(), true, populate.bind(_window));
+    if(System.API.uri.trimTrailingSlash(_window.currentPath.getValue()) == 'desktop') explorer.refreshDesktop();
+}
+
+explorer.openWith = function(filePath) {
+    var app = this;
+    var dialog = new Window(System.Lang.desktop.contextmenu.openWith, 450, 220);
+    dialog.destroyOnClose = true;
+    dialog.showOnTaskbar = false;
+
+    var infoLabel = new Label(System.Lang.explorer.fileExplorer.openWithInfo, 20, 20);
+    var appList = {};
+    for (var i = 0; i < System.Applications.length; i++) {
+        if(System.Applications[i].open !== undefined) appList[System.Applications[i].displayName] = System.Applications[i].name;
+    }
+    appList['Browser'] = 'Browser';
+    var appList = new List(appList, 20, 50);
+    var checkbox = new Input('checkbox', 20, 90);
+    checkbox.e.prop('checked', true);
+    var AssociateExtensionWithFile = new Label(System.Lang.explorer.fileExplorer.openWithAssociateExtensionWithFile, 40, 90);
+    var okBtn = new Button('OK', 20, 120, function() {
+        app.fileSystem.file.open(filePath, appList.getSelected().value);
+        //app.ApplicationManager.runByName(dialog.appList.getSelected().value, {openFile: filePath});
+        if(checkbox.checked()) System.Settings.associatedFileExtensions[app.uri.getExtension(filePath)] = appList.getSelected().value;
+        dialog.close();
+    });
+    var cancelBtn = new Button(System.Lang.desktop.dialogs.cancelBtn, 70, 120, function() {
+        dialog.close();
+    });
+
+    this.addWindow(dialog);
+    dialog.addItem(infoLabel);
+    dialog.addItem(appList);
+    dialog.addItem(checkbox);
+    dialog.addItem(AssociateExtensionWithFile);
+    dialog.addItem(okBtn);
+    dialog.addItem(cancelBtn);
+    dialog.open();
 }
 
 explorer.openPath = function(path, forceNewWindow) {
@@ -148,13 +195,54 @@ explorer.openPath = function(path, forceNewWindow) {
     }
     if(!alreadyOpened) {
         var _window = new Window(path !== '' ? app.uri.getDirectoryName(path) : System.Lang.explorer.fileExplorer.caption, 620, 500);
-        //_window.defaultSize = {width: 620, height: 500};
+        if(app.getSettingsItem('customSize') !== undefined) _window.customSize = {width: app.getSettingsItem('customSize').width, height:app.getSettingsItem('customSize').height};
         _window.destroyOnClose = true;
         this.addWindow(_window);
         _window.currentPath = new Input('text', 15, 15, undefined, path);
         _window.currentPath.setWidth(300);
         _window.field = new ItemField(15, 60, 500, 370, { tiles: '<div class="text">{name}<span class="size">{size}</span></div>' , list: '<div class="text">{name}<span class="size">{size}</span></div>' }, app.getSettingsItem('view'));
         _window.field.resizeToWindow = true;
+        _window.field.addContextMenu([
+            {
+                label: System.Lang.desktop.contextmenu.new,
+                submenu: [
+                    {
+                        label: System.Lang.fileSystem.directory,
+                        action: function() {
+                            app.prompt(function(r) {
+                                System.API.fileSystem.directory.create(System.API.uri.trimTrailingSlash(_window.currentPath.getValue()) + '/' + r, function(re) {
+                                    if(re) app.refresh(_window);
+                                });
+                            }, System.Lang.explorer.fileExplorer.newItemDialog, System.Lang.fileSystem.newDirectory, System.Lang.fileSystem.newDirectory);
+                        },
+                    },
+                    {
+                        label: System.Lang.fileSystem.textFile,
+                        action: function() {
+                            app.prompt(function(r) {
+                                System.API.fileSystem.file.write(System.API.uri.trimTrailingSlash(_window.currentPath.getValue()) + '/' + r + '.txt', '', function(re) {
+                                    if(re) app.refresh(_window);
+                                });
+                            }, System.Lang.explorer.fileExplorer.newItemDialog, System.Lang.fileSystem.newTextFile, System.Lang.fileSystem.newTextFile);
+                        }, 
+                    }
+                ]
+            }
+            ]);
+
+        _window.field.onSelectStart = _window.field.onSelect = function (r) {
+            /*var size = 0;
+            var filesOnly = true;
+            for(var i = 0; i < r.length; i++) {
+                size+= parseInt(r[i].size);
+                if(app.uri.isDirectory(r[i].name)) {
+                    filesOnly = false;
+                    break;
+                }
+            }*/
+            _window.itemsSelectedLabel.setHtml(r.length > 1 ? System.Lang.explorer.fileExplorer.itemsSelected.format(r.length) /*+ (filesOnly ? ' ' + System.Lang.explorer.fileExplorer.fileSize + ': ' + app.fileSystem.bytesToSize(size) : '') */: '');
+        };
+
         _window.goBtn = new Button(System.Lang.explorer.fileExplorer.go, 330, 15, function () {
             app.fileSystem.directory.getFilesInfo(_window.currentPath.getValue(), true, populate.bind(_window));
             _window.setCaption(_window.currentPath.getValue() !== '' ? app.uri.getDirectoryName(_window.currentPath.getValue()) : System.Lang.explorer.fileExplorer.caption);
@@ -168,15 +256,19 @@ explorer.openPath = function(path, forceNewWindow) {
             }
         });
         _window.viewLabel = new Label(System.Lang.explorer.fileExplorer.view, 525, 60);
-        _window.viewLabel.anchored = true;
+        _window.viewLabel.anchor = anchorStyles.right | anchorStyles.top;
         _window.tileViewLabel = new Label(System.Lang.explorer.fileExplorer.tileView, 550, 75);
-        _window.tileViewLabel.anchored = true;
+        _window.tileViewLabel.anchor = anchorStyles.right | anchorStyles.top;
         _window.listViewLabel = new Label(System.Lang.explorer.fileExplorer.listView, 550, 90);
-        _window.listViewLabel.anchored = true;
+        _window.listViewLabel.anchor = anchorStyles.right | anchorStyles.top;
         _window.tileViewRadio = new Input('radio', 525, 75, 'view-radio' + _window.getId(), 'tiles', app.getSettingsItem('view') == 'tiles' ? {checked: ''} : {});
-        _window.tileViewRadio.anchored = true;
+        _window.tileViewRadio.anchor = anchorStyles.right | anchorStyles.top;
         _window.listViewRadio = new Input('radio', 525, 90, 'view-radio' + _window.getId(), 'list', app.getSettingsItem('view') == 'list' ? {checked: ''} : {});
-        _window.listViewRadio.anchored = true;
+        _window.listViewRadio.anchor = anchorStyles.right | anchorStyles.top;
+        _window.itemsCountLabel = new Label('', 15, 435);
+        _window.itemsCountLabel.anchor = anchorStyles.left | anchorStyles.bottom;
+        _window.itemsSelectedLabel = new Label('', 150, 435);
+        _window.itemsSelectedLabel.anchor = anchorStyles.left | anchorStyles.bottom;
         _window.addItem(_window.currentPath);
         _window.addItem(_window.field);
         _window.addItem(_window.goBtn);
@@ -186,6 +278,8 @@ explorer.openPath = function(path, forceNewWindow) {
         _window.addItem(_window.listViewLabel);
         _window.addItem(_window.tileViewRadio);
         _window.addItem(_window.listViewRadio);
+        _window.addItem(_window.itemsCountLabel);
+        _window.addItem(_window.itemsSelectedLabel);
 
         _window.setInputHandler('view-radio' + _window.getId(), 'change', function() {
             _window.field.setView(_window.getSelectedInputValue('view-radio' + _window.getId()));
@@ -193,14 +287,80 @@ explorer.openPath = function(path, forceNewWindow) {
         });
         
         app.fileSystem.directory.getFilesInfo(path, true, populate.bind(_window));
+
         _window.addEvent('resizestop', function(e, ui) {
-            app.setSettingsItems({
+            app.setSettingsItem('customSize', {
                 width: ui.size.width,
                 height: ui.size.height
             });
+            app.setSettingsItem('customPosition', {
+                x: ui.position.left,
+                y: ui.position.top
+            });
         });
-        _window.open();
+        _window.addEvent('dragstop', function(e, ui) {
+            app.setSettingsItem('customPosition', {
+                x: ui.position.left,
+                y: ui.position.top
+            });
+        });
+
+        _window.onMaximize = function() {
+            app.setSettingsItem('maximized', true);
+        };
+
+        _window.onUnMaximize = function() {
+            app.setSettingsItem('maximized', false);
+        };
+
+        if(app.getSettingsItem('customPosition') !== undefined) 
+            _window.open({x: app.getSettingsItem('customPosition').x, y: app.getSettingsItem('customPosition').y});
+        else
+            _window.open();
+
+        if(app.getSettingsItem('maximized') == true) {
+            _window.maximize();
+        }
+
+        _window.addShortcut('alt+n', function() {
+            app.openPath(_window.currentPath.getValue(), true);
+        });
+
+        _window.addShortcut('enter', function() {
+            if(_window.currentPath.e.is(':focus')) {
+                app.fileSystem.directory.getFilesInfo(_window.currentPath.getValue(), true, populate.bind(_window));
+                _window.setCaption(_window.currentPath.getValue() !== '' ? app.uri.getDirectoryName(_window.currentPath.getValue()) : System.Lang.explorer.fileExplorer.caption);
+            }
+        });
     }
+}
+
+explorer.refreshDesktop = function() {
+    var app = this;
+    this.fileSystem.directory.getFilesInfo('desktop', true, function (r) {
+        if (r) {
+            var arr = [];
+            for (key in r) {
+                var item = new Item({ name: r[key].name, path: app.uri.getUserDirectory(r[key].relative_path, true) + r[key].name, size: app.fileSystem.bytesToSize(r[key].size) }, (function (s) {
+                    return function () {
+                        if (app.uri.isFile(s)) {
+                            app.fileSystem.file.open(s);
+                        }
+                        else {
+                            app.openPath(s);
+                        }
+                    };
+                })(app.uri.getUserDirectory(r[key].relative_path, true) + r[key].name));
+                item.e.css('background-image', getIconByFileExtension(app.uri.getExtension(r[key].name)));
+                item.addTooltip('<div>' + System.Lang.explorer.fileExplorer.fileName + ': ' + r[key].name + '</div>' + (app.uri.isFile(r[key].name) ? '<div>' + System.Lang.explorer.fileExplorer.fileSize + ': ' + app.fileSystem.bytesToSize(r[key].size) : '') + '</div><div>' + System.Lang.explorer.fileExplorer.fileModDate + ': ' + new Date(r[key].date * 1000).toLocaleString(System.Lang.code));
+                System.desktop.addContextMenu(item, {filePath: app.uri.getUserDirectory(r[key].relative_path, true) + r[key].name, app: app, itemField: System.desktop.field, refresh: function() {
+                    explorer.refreshDesktop();
+                }});
+                arr.push(item);
+            }
+            System.desktop.field.setItems(arr);
+        }
+    });
 }
 
 explorer.main = function (r) {
@@ -220,31 +380,11 @@ explorer.main = function (r) {
     this._upload.designer = uploadDesigner;
 
     this.openPath('');
-
-    data.fileSystem.directory.getFilesInfo('desktop', true, function (r) {
-        if (r) {
-            var arr = [];
-            for (key in r) {
-                var item = new Item({ name: r[key].name, path: data.uri.getUserDirectory(r[key].relative_path, true) + r[key].name, size: bytesToSize(r[key].size) }, (function (s) {
-                    return function () {
-                        if (data.uri.isFile(s)) {
-                            data.fileSystem.file.open(s);
-                        }
-                        else {
-                            data.openPath(s);
-                        }
-                    };
-                })(data.uri.getUserDirectory(r[key].relative_path, true) + r[key].name));
-                item.e.css('background-image', getIconByFileExtension(data.uri.getExtension(r[key].name)));
-                item.addTooltip('<div>' + System.Lang.explorer.fileExplorer.fileName + ': ' + r[key].name + '</div>' + (data.uri.isFile(r[key].name) ? '<div>' + System.Lang.explorer.fileExplorer.fileSize + ': ' + bytesToSize(r[key].size) : '') + '</div><div>' + System.Lang.explorer.fileExplorer.fileModDate + ': ' + new Date(r[key].date * 1000).toUTCString());
-                arr.push(item);
-            }
-            desktop.field.setItems(arr);
-        }  
-    });
+    this.refreshDesktop();
 
     this.run.open();
     this._upload.open();
+
 }
 
 System.ApplicationManager.load(explorer);

@@ -17,9 +17,10 @@ login.main = function (args) {
         this.loginBtn = new Button(System.Lang.loginApp.loginBtn, 15, 90, function () {
             selfApp.user.login(self.username.getValue(), self.password.getValue(), function (r) {
                 if (r) {
-                    selfApp.messageBox(System.Lang.loginApp.loginSuccess, 'tick', undefined, [new Button('OK', 0, 0, function() {
+                    /*selfApp.messageBox(System.Lang.loginApp.loginSuccess, 'tick', undefined, [new Button('OK', undefined, undefined, function() {
                         selfApp.close();
-                    })]);
+                    })]);*/
+                    selfApp.close();
                 }
                 else {
                     selfApp.messageBox(System.Lang.loginApp.loginFail, 'error');
@@ -43,7 +44,7 @@ login.main = function (args) {
         this.username.setFocus();
     }
 
-    var register_window = new Window(System.Lang.loginApp.registerCaption, 400, 210);
+    var register_window = new Window(System.Lang.loginApp.registerCaption, 400, 220);
     this.addWindow(register_window);
     register_window.designer = function () {
         var self = this;

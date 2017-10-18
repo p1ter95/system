@@ -4,89 +4,137 @@ class Members extends CI_Controller {
 	public function __construct()
 	{
 		parent::__construct();
-		$this->load->model('members_model');
-		$this->load->model('index_model');
-		$this->load->helper(array('form', 'url'));
+		$this->load->model('system_model');
+		$this->load->helper(array('url', 'form'));
 		$this->load->library('session');
 	}
 
-	public function register()
+	public function register() 
 	{
-		$this->load->library('form_validation');
+		$errors = array();
+		$data = array();
 
-		$this->form_validation->set_rules('username', 'Nazwa użytkownika', 'required|min_length[5]|max_length[15]|is_unique[users.username]|xss_clean|');
-		$this->form_validation->set_rules('password', 'Hasło', 'required|min_length[5]');
-		$this->form_validation->set_rules('confirm_password', 'Hasło potwierdzające', 'required||matches[password]');
-		$this->form_validation->set_error_delimiters('<span class="error">', '</span>');
+		$username = $this->input->post('username');
+		$password = $this->input->post('password');
+		$password_conf = $this->input->post('password_conf');
 
-		$result = '';
-		if($this->input->post('registerButton'))
+		if($this->system_model->userExists($username))
 		{
-
-			if ($this->form_validation->run() == FALSE)
-			{
-				$result = 'Rejestracja nie powiodła się|fail';
-			}
-			else
-			{
-				$result = 'Rejestracja zakończona powodzeniem|success';
-				$this->members_model->registerUser();
-			}
+			$errors[] = $username . '  is already taken';
+		}
+		if($username == '')
+		{
+			$errors[] = "You didn't enter username";
+		}
+		if($password == '')
+		{
+			$errors[] = "You didn't enter password";
+		}
+		if($password_conf == '')
+		{
+			$errors[] = "You didn't enter password confirmation";
+		}
+		if($password != $password_conf)
+		{
+			$errors[] = "Given passwords don't match";
+		}
+		if(strlen($username) < 5 || strlen($username) > 15)
+		{
+			$errors[] = 'Wrong username length (The range is from 5 to 15 characters)';
+		}
+		if(strlen($password) < 5)
+		{
+			$errors[] = 'Password too short (At least 5 characters are required)';
 		}
 
-
-		$data = array(
-			'online' => $this->members_model->getOnlineUsers(),
-			'message' => $result,
-			'title' => 'Rejestracja'
-			);
-		$this->load->template('register', $data);
-	}
-
-	public function profile($id)
-	{
-		$this->members_model->updateProfileViews2($id);
-		$data = array(
-			'profile' => $this->members_model->getUser($id),
-			'online' => $this->members_model->getOnlineUsers()
-			);
-		if($this->members_model->getUser($id) != NULL)
-		{
-			$data['title'] = $this->members_model->getUser($id)->username;
+		if(count($errors) > 0) {
+			$data['success'] = 'false';
 		}
 		else
 		{
-			$data['title'] = 'Brak takiego użytkownika';
+			$data['success'] = 'true';
+			$this->system_model->registerUser();
+			mkdir($this->system_model->usersDir() . $username, 0700, TRUE);
 		}
-		$this->load->template('profile',$data);
+		$data['message'] = $errors;
+		echo json_encode($data);
+		
 	}
 
-	private function _login()
-	{
-		if($this->index_model->login()) 
+	private function setSessionData() {
+
+		$username = $this->input->post('username');
+
+		$result = $this->db->query("SELECT ID FROM users WHERE username=" . $this->db->escape($username));
+		$id = $result->row()->ID;
+
+		$result = $this->db->query("SELECT type FROM users WHERE username=" . $this->db->escape($username));
+		$type = $result->row()->type;
+
+		$ip_address = $this->input->ip_address();
+		$this->db->query("UPDATE users SET ip_address='$ip_address' WHERE ID='$id'");
+
+		$data = array(
+			'username' => $username,
+			'id' => $id,
+			'type' => $type
+			);
+
+		$this->session->set_userdata($data);
+	}
+
+	public function logout(){
+		$data = array(
+			'username' => '',
+			'id' => '',
+			'profile_id' => '',
+			'type' => '',
+			);
+		$this->session->unset_userdata($data); //FIX
+		$this->session->sess_destroy();
+		echo json_encode(TRUE);
+	}
+
+	public function is_logged() {
+		$data = array();
+		if($this->system_model->isLogged())
 		{
-				$this->index_model->setSessionData();
-				$this->members_model->updateLastSeen();
-				redirect(base_url());
+			$data = TRUE;
 		}
 		else
 		{
-		echo 'Nie udalo sie zalogować';
+			$data = FALSE;
 		}
+
+		echo json_encode($data);
 	}
 
+	public function getUsername() {
+		$data = array();
+		if($this->system_model->isLogged())
+		{
+			$data = $this->session->userdata('username');
+		}
+		else{
+			$data = FALSE;
+		}
+		echo json_encode($data);
+	}
 
 	public function login()
 	{
-		if($this->input->post('submit'))
+		$data = array();
+		if($this->system_model->login())
 		{
-			$this->_login();
+			$this->setSessionData();
+			$data['first_run'] = $this->system_model->firstRun() ? TRUE : FALSE;
+			$this->system_model->setNotFirstRun();
 		}
+		else
+		{
+			$data = FALSE;
+		}
+		echo json_encode($data);
 	}
 
-	public function logout()
-	{
-		$this->index_model->logout();
-		redirect(base_url());
-	}
 }

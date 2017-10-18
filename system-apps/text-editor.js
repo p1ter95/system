@@ -3,22 +3,20 @@ var editor = new Application('Text Editor');
 editor.onClose = function() {
 	var app = this;
 	if(this.modified) {
-		this.messageBox('You left ' + this.uri.getFileName(this.currentFile) + ' unsaved. Do you wish to save this file before closing application?', 'warning', undefined, 
+		this.messageBox('You have left ' + this.uri.getFileName(this.currentFilePath) + ' unsaved. Do you wish to save this file before closing application?', 'warning', undefined, 
 			[new Button('Yes', 0, 0, function() {
-				app.saveFile(app.currentFile);
-				System.ProcessManager.killProcess(app.processId);
+				app.saveFile(app.currentFilePath);
+				app.exit();
 			}),
 			new Button('No', 0, 0, function() {
 				app.modified = false;
-				System.ProcessManager.killProcess(app.processId);
+				app.exit();
 			}),
-			new Button('Cancel', 0, 0, function() {
-				
-			})]
+			new Button('Cancel', 0, 0)]
 		);
 	}
 	else
-		System.ProcessManager.killProcess(app.processId);
+		app.exit();
 };
 
 editor.openFile = function(path) {
@@ -26,7 +24,7 @@ editor.openFile = function(path) {
 		this.fileSystem.file.read(path, function(r) {
 			this.window.textarea.setValue(r);
 			this.window.setCaption(this.uri.getFileName(path));
-			this.currentFile = path;
+			this.currentFilePath = path;
 			this.modified = false;
 		}.bind(this));
 	}
@@ -40,79 +38,102 @@ editor.saveFile = function(path) {
 	this.modified = false;
 }
 
+editor.saveOption = function() {
+	var app = this;
+	if(this.currentFilePath !== '') {
+		this.saveFile(this.currentFilePath);
+	}
+	else {
+		this.saveFileDialog(function(r) {
+			console.log(r);
+			app.saveFile(r);
+		}, {'Text file': 'txt', 'JavaSript file': 'js', 'All files': '*'}, app.currentFilePath !== '' ? app.uri.getPathWithoutFileName(app.currentFilePath) : undefined); 
+	}
+}
+
 editorDesigner = function() {
 	var app = this.app;
     var self = this;
 	this.menu = new MenuStrip({
 		File: [
 		{
-			label: 'New', 
+			label: 'New',
 			action: function() {
-				app.currentFile = '';
+				app.currentFilePath = '';
 				self.setCaption('New file');
 				self.textarea.setValue('');
-				self.modified = false;
+				app.modified = false;
 			}
 		},
 		{
-			label: 'Open', 
+			label: 'Open',
 			action: function() { 
 				app.openFileDialog(function(r) {
 					console.log(r);
 					app.openFile.call(app, r);
-				}, {'Text files': 'txt|js|json|bat', 'All files': '*'});
+				}, {'Text files': 'txt|js|json|bat', 'All files': '*'}, app.currentFilePath !== '' ? app.uri.getPathWithoutFileName(app.currentFilePath) : undefined);
 			}
 		},
 		{
-			label: 'Save', 
-			action: function() { 
-				if(app.currentFile !== '') {
-					app.saveFile(app.currentFile);
-				}
-				else
-					app.saveFileDialog(function(r) {
-						console.log(r);
-						app.saveFile(r);
-					}, {'Text file': 'txt', 'JavaSript file': 'js', 'All files': '*'}); 
-			}
+			label: 'Save',
+			shortcut: 'Ctrl+S',
+			action: app.saveOption.bind(app)
 		},
 		{
-			label: 'Save As...', 
-			action: function() { 
+			label: 'Save As...',
+			action: function() {
 				app.saveFileDialog(function(r) {
 					console.log(r);
 					app.saveFile(r);
-				}, {'Text file': 'txt', 'JavaSript file': 'js', 'All files': '*'}); 
+				}, {'Text file': 'txt', 'JavaSript file': 'js', 'All files': '*'}, app.currentFilePath !== '' ? app.uri.getPathWithoutFileName(app.currentFilePath) : undefined); 
 			}
 		},
 		{
-			label: 'Close', 
+			label: 'Exit',
+			shortcut: 'F4',
 			action: function() {
 				app.close();
+			}
+		}
+		],
+		Format: [
+		{
+			label: 'Word wrap',
+			checked: app.getSettingsItem('wordWrap'),
+			onCheck: function() {
+				self.textarea.setWordWrap(true);
+				app.setSettingsItem('wordWrap', true);
+			},
+			onUnCheck: function() {
+				self.textarea.setWordWrap(false);
+				app.setSettingsItem('wordWrap', false);
 			}
 		}
 		]
 	})
 	this.addItem(this.menu);
-	this.textarea = new Textarea(0, this.menu.getHeight(), 5, 5);
-	this.textarea.e.css('height', this.getInnerHeight() - this.menu.getHeight());
-	this.textarea.e.css('width', '100%');
+	this.textarea = new Textarea(0, 0, 5, 5);
+	this.textarea.fillWindow();
 	this.textarea.addEvent('input propertychange', function() {
-		self.setCaption(app.currentFile !== '' ? app.uri.getFileName(app.currentFile) + '*' : 'New file*');
+		self.setCaption(app.currentFilePath !== '' ? app.uri.getFileName(app.currentFilePath) + '*' : 'New file*');
 		app.modified = true;
 	});
 	this.textarea.resizeToWindow = true;
+	this.textarea.setWordWrap(app.getSettingsItem('wordWrap'));
 	this.addItem(this.textarea);
+	this.textarea.setFocus();
 }
 
 editor.main = function () {
-	this.currentFile = '';
+	this.currentFilePath = '';
 	this.modified = false;
-    this.window = new Window(this.name, 1280, 720);
+    this.window = new Window(this.name, System.desktop.window.width() / 2, System.desktop.window.height() / 1.5);
 	this.addWindow(this.window);
 	this.window.designer = editorDesigner;
 	this.window.setMainWindow();
 	this.window.open();
+
+	this.window.addShortcut('ctrl+s', this.saveOption.bind(this)); //FIX
 
 	//openImage.call(this);
 }

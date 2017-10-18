@@ -1,12 +1,14 @@
-﻿var lang = {
+﻿System.Lang = {
     name: 'Polish',
     localName: 'Polski',
+    code: 'pl',
+    daysOfWeek: ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota'],
     settings: {
-        sourceAlreadyAdded: '{fileName} jest już dodane do źródeł',
-        sourceAdded: '{fileName} zostało dodane do źródeł',
+        sourceAlreadyAdded: '{0} jest już dodane do źródeł',
+        sourceAdded: '{0} zostało dodane do źródeł',
         sourceError: 'Wystapił błąd podczas dodawania źródła',
-        sourceUnloaded: '{fileName} zostało usunięte',
-        sourceRemoved: '{fileName} zostało usunięte ze źródeł'
+        sourceUnloaded: '{0} zostało usunięte',
+        sourceRemoved: '{0} zostało usunięte ze źródeł'
     },
     loginApp: {
         loginCaption: 'Logowanie',
@@ -47,17 +49,29 @@
 			go: 'Idź',
 			upOneLevel: 'W górę',
             view: 'Widok',
-            renameFile: 'Wprowadź nową nazwę dla tego pliku',
+            renameItemDialog: 'Wprowadź nową nazwę dla tego elementu',
+            newItemDialog: 'Wprowadź nazwę dla tego elementu',
+            addToSourcesDialog: 'Ile aplikacji i/lub usług znajduję się w tym elemencie?',
+            itemDeletionConfirmation: 'Na pewno chcesz usunąć ten element(y)?',
+            openWithInfo: 'Wybierz aplikację, za pomocą której chcesz otworzyć ten plik',
+            openWithAssociateExtensionWithFile: 'Zawsze używaj tej aplikacji do otwierania tego typu plików',
             tileView: 'Kafelki',
             listView: 'Lista',
             fileName: 'Nazwa',
             fileSize: 'Rozmiar',
             fileModDate: 'Data modyfikacji',
+            itemsCountOne: '{0} element',
+            itemsCount: 'Elementów: {0}',
+            itemsSelected: 'Wybranych elementów: {0}'
         }
     },
     fileSystem: {
         copyOf: 'Kopia ',
-        bytes: 'bajty'
+        bytes: 'bajty',
+        directory: 'Katalog',
+        newDirectory: 'Nowy katalog',
+        textFile: 'Plik tekstowy',
+        newTextFile: 'Nowy plik tekstowy'
     },
     desktop: {
         dialogs: {
@@ -65,20 +79,22 @@
             prompt: 'Podaj dane',
             error: 'Błąd',
             okBtn: 'OK',
+            yesBtn: 'Tak',
+            noBtn: 'Nie',
             openFile: 'Otwieranie pliku',
             saveFile: 'Zapisywanie pliku',
             openBtn: 'Otwórz',
             saveBtn: 'Zapisz',
             cancelBtn: 'Anuluj',
             browseDir: 'Wybierz folder',
-            allFiles: 'All files'
+            allFiles: 'Wszystkie pliki'
         },
         messages: {
             error: '{error} w {url} w linii {line}',
-            runAppError: 'Nie można uruchomić tej aplikacji',
-            runServiceError: 'Nie można uruchomić tej usługi',
+            runAppError: 'Nie udało się uruchomić tej aplikacji',
+            runServiceError: 'Nie udało się uruchomić tej usługi',
             notLogged: 'Nie jesteś zalogowany/a',
-            notFound: '{what} nie zostało odnalezione'
+            notFound: '{0} nie zostało odnalezione'
         },
         taskbar: {
             applications: 'Aplikacje',
@@ -86,20 +102,24 @@
             system: 'System'
         },
         contextmenu: {
+            add: 'Dodaj...',
             closeWindow: 'Zamknij okno',
             homeDirectory: 'Katalog domowy',
             logout: 'Wyloguj się',
             open: 'Otwórz',
             openNewWindow: 'Otwórz w nowym oknie',
+            new: 'Nowy',
             openWithBrowser: 'Otwórz za pomocą przeglądarki',
+            openWith: 'Otwórz za pomocą...',
             download: 'Pobierz',
             rename: 'Zmień nazwę',
             duplicate: 'Duplikuj',
             delete: 'Usuń',
             setAsWallpaper: 'Ustaw jako tło pulpitu',
+            addToSources: 'Dodaj do źródeł',
             run: 'Uruchom'
         }
     }
 }
 
-System.LocalizationManager.load(lang);
+System.SettingsManager.loadLocale();

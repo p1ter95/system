@@ -44,8 +44,11 @@
                 z-index: 1;
 		    }
 
-		    #dekstop {
+		    #desktop {
                 position: relative;
+                background-repeat: no-repeat;
+                background-position: right;
+                background-size: cover;
 		    }
 
 		    #desktop-items {
@@ -68,6 +71,14 @@
                 box-shadow: 0 0 50px -8px rgba(50, 50, 50, 0.3), inset 0px 1px 0px 0px rgba(255, 255, 255, 0.5);
                 /*background-color: rgba(242, 242, 242, 0.5); #F2F2F2*/
 		    }
+
+            #taskbar.top {
+                border-top-width: 0;
+            }
+
+            #taskbar.bottom {
+                border-bottom-width: 0;
+            }
 
             #taskbar .taskbar-menu {
                 padding: 0 10px;
@@ -98,7 +109,7 @@
                 border-left-width: 1px;
             }
 
-            #taskbar #taskbar-time {
+            #taskbar #taskbar-datetime {
                 position: absolute;
                 border-left: 1px solid #BDBDBD;
                 top: 0;
@@ -109,6 +120,10 @@
                 font-size: 110%;
                 z-index: 1;
 		    }
+
+            #taskbar #taskbar-datetime:hover {
+                cursor: default;
+            }
 
 		    #taskbar .taskbar-app.focus {
                 background: linear-gradient(to bottom, rgba(255,255,255,0.7) 0%,rgba(215,215,215,0.7) 100%);
@@ -152,9 +167,24 @@
                 font: normal normal normal 15px 'Noto Sans';
                 text-shadow: 0px 0px 10px rgba(255, 255, 255, 1);
                 margin: 0;
+                overflow: hidden;
 		    }
 
             .window-content {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: #F2F2F2;
+                overflow: hidden;
+		    }
+
+            .menustrip ~ .window-content {
+                top: 36px;
+            }
+
+            .window-content-wrapper {
                 position: absolute;
                 top: 35px;
                 left: 0;
@@ -164,26 +194,34 @@
                 margin: 0 5px 5px 5px;
                 background: #F2F2F2;
                 overflow: hidden;
-		    }
+            }
 
 		    .window-action {
                 position: absolute;
-                width: 2em;
+                width: 30px;
                 top: 0;
                 bottom: 0;
-                text-align: center;
-                vertical-align: middle;
                 line-height: 15px;
+                transition: background-color .3s;
 		    }
+
+            .window-action:not(.disabled):hover {
+                background-color: white;
+                transition: background-color .3s;
+            }
+
+            .window-action.disabled {
+                opacity: 0.5;
+            }
 
             .window-action-minimize {
                 background: url('res/minimize.png') center center no-repeat;
-                right: 44px;
+                right: 60px;
 		    }
 
             .window-action-maximize {
                 background: url('res/maximize.png') center center no-repeat;
-                right: 22px;
+                right: 30px;
 		    }
 
             .window-action-close {
@@ -248,6 +286,7 @@
                 top: 0;
                 left: 0;
                 right: 0;
+                height: 36px;
                 list-style: none;
                 background-color: white;
                 border-bottom: 1px solid #BDBDBD;
@@ -257,7 +296,6 @@
                 display: inline-block;
                 padding: 7px 10px;
                 border: 1px solid transparent;
-                border-radius: 3px;
             }
 
             .window .menustrip .menu:hover {
@@ -281,10 +319,6 @@
 
 		    .window button img {
                 position: static;
-                vertical-align: middle;
-		    }
-
-            .window button .text {
                 vertical-align: middle;
 		    }
 
@@ -373,6 +407,22 @@
                 background: center 5px no-repeat;
                 background-size: 32px 32px;
 		    }
+
+            .item-field[data-view=tiles] .item .text {
+                text-overflow: ellipsis;
+                overflow: hidden;
+                /*white-space: nowrap;*/
+                position: relative;
+                font-size: 14px;
+                top: 37px;
+            }
+
+            .item-field[data-view=tiles] .item.selected .text {
+                overflow: initial;
+                white-space: normal;
+                word-break: break-word;
+                z-index: 1;
+            }
 			
 			.item-field[data-view=list] .item {
                 padding: 5px 3px 5px 35px;
@@ -382,13 +432,18 @@
 				background-size: 25px 25px;
 		    }
 
+            .item-field[data-view=list] .item .size {
+                position: absolute;
+                right: 3px;
+            }
+
             .item-field .item:hover {
                 background-color: rgba(242, 242, 242, 0.5);
                 cursor: pointer;
                 border: 1px solid #ccc;
 		    }
 
-            .item-field .item.selected{
+            .item-field .item.selected {
                 background-color: rgba(242, 242, 242, 1);
                 border: 1px solid #ccc;
 		    }
@@ -399,27 +454,6 @@
                 bottom: 5px;
                 font-size: 90%;
                 color: #9E9E9E;*/
-		    }
-
-            .item-field[data-view=tiles] .item .text {
-                text-overflow: ellipsis;
-                overflow: hidden;
-                /*white-space: nowrap;*/
-                position: relative;
-                font-size: 14px;
-                top: 37px;
-		    }
-			
-			.item-field[data-view=list] .item .size {
-                position: absolute;
-				right: 3px;
-		    }
-
-            .item-field[data-view=tiles] .item.selected .text {
-                overflow: initial;
-                white-space: normal;
-                word-break: break-word;
-                z-index: 1;
 		    }
 
             /*
@@ -558,7 +592,7 @@
             }
 
             .contextmenu.downwards ul ul {
-                top: 0;
+                top: -1px;
             }
 
             .contextmenu.upwards ul ul {
@@ -589,6 +623,12 @@
                 cursor: pointer;
             }
 
+            .contextmenu li.separator {
+                background-color: rgba(242, 242, 242, 1);
+                padding: 1px 0;
+                margin: 3px 0;
+            }
+
             .contextmenu li.checked {
                 background-image: url('res/tick-small.png');
                 background-position: 3px center;
@@ -597,6 +637,13 @@
 
             .contextmenu li.bold {
                 font-weight: bold;
+            }
+
+            .contextmenu span.shortcut {
+                position: absolute;
+                top: 49%;
+                transform: translateY(-50%);
+                right: 5px;
             }
 
             .contextmenu li.expand {
@@ -678,7 +725,7 @@
             }
 		</style>
 
-        <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+        <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
         <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
         <script src="js/serialize.js"></script>
         <script src="js/fileicons.js"></script>

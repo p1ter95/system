@@ -1,4 +1,4 @@
-﻿//EXTENDING STRING PROTOTYPE
+//EXTENDING STRING PROTOTYPE
 
 String.prototype.format = function () {
     var formatted = this;
@@ -28,6 +28,10 @@ RegExp.escape = function (str) {
 /*==============================================================
 MISC HELPER FUNCTIONS
 ===============================================================*/
+
+function getRandomNumber(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 function bool(val) {
     if (insensitiveComparison(val, 'true')) {
@@ -65,30 +69,11 @@ function insensitiveComparison(str1, str2) {
     return str1.toUpperCase() == str2.toUpperCase();
 }
 
-function bytesToSize(bytes) {
-    if (bytes === 0) return '0 ' + System.Lang.fileSystem.bytes;
-    var k = 0;
-    var sizes = [];
-    switch (System.Settings.fileSystem.fileSizeUnits) {
-        default:
-        case 'decimal':
-            k = 1000;
-            sizes = [System.Lang.fileSystem.bytes, 'KB', 'MB', 'GB', 'TB'];
-            break;
-        case 'binary':
-            k = 1024;
-            sizes = [System.Lang.fileSystem.bytes, 'KiB', 'MiB', 'GiB', 'TiB'];
-            break;
-    }
-    var i = Math.floor(Math.log(bytes) / Math.log(k));
-    return (bytes < k ? bytes : (bytes / Math.pow(k, i)).toPrecision(3)) + ' ' + sizes[i];
-}
-
 function getHighestZIndex() {
-	var arr = [];
-	$('.window').each(function() {
-		arr.push(parseInt($(this).css('z-index')));
-	});
+    var arr = [];
+    $('.window').each(function() {
+        arr.push(parseInt($(this).css('z-index')));
+    });
     var max = Math.max.apply(Math, arr);
     return max;
 }
@@ -110,8 +95,8 @@ function isContextMenuVisible() {
 function getIconByFileExtension(extension) {
     if(extension == '')
         return 'url(' + System.Presets.resourcesPath + 'fileicons/folder.png)';
-    else if(supportedFileIcons.indexOf(extension) != -1){
-        return 'url(' + System.Presets.resourcesPath + 'fileicons/' + extension + '.png)';
+    else if(supportedFileIcons.indexOf(extension.toLowerCase()) != -1) {
+        return 'url(' + System.Presets.resourcesPath + 'fileicons/' + extension.toLowerCase() + '.png)';
     }
     else {
         return 'url( ' + System.Presets.resourcesPath + 'fileicons/file.png)';
@@ -126,12 +111,16 @@ var System = {};
 
 System.Presets = {};
 System.SettingsManager = {};
-System.ProcessManager = {idCounter: 0};
+System.ProcessManager = {
+    idCounter: 0
+};
 System.ApplicationManager = {};
 System.ServicesManager = {};
 System.WindowManager = {};
-System.LocalizationManager = {};
-System.IOManager = { mouse: {} };
+System.IOManager = {
+    mouse: {}, 
+    keyboard: {}
+};
 System.desktop = {};
 System.Applications = [];
 System.Processes = [];
@@ -140,7 +129,6 @@ System.Services = [];
 System.Init = function () {
     this.Presets.init();
     this.SettingsManager.init();
-    this.LocalizationManager.init();
     this.IOManager.init();
     this.WindowManager.init();
     this.desktop.init();
@@ -151,7 +139,8 @@ System.SettingsManager.init = function () {
     System.Settings = {
         fileSystem: {
             fileSizeUnits: 'decimal',
-            sortDirectoriesBeforeFiles: true
+            sortDirectoriesBeforeFiles: true,
+            askBeforeDeleting: true
         },
         desktop: {
             defaultWindowDimensions: {
@@ -164,11 +153,9 @@ System.SettingsManager.init = function () {
             tooltipFadeTime: 150,
             taskbarPosition: 'bottom',
             taskbarItemWidth: 100,
-            taskbarBackground: new Color(242, 242, 242, 0.7),
-            taskbarDateFormat: '{day}.{month}.{year}',
-            taskbarTimeFormat: '{hours}:{minutes}',
+            taskbarBackground: 'rgba(242, 242, 242, 0.7)',
             refreshRate: 5,
-            backgroundPath: System.Presets.wallpapersPath + 'wallpaper1.jpg',
+            backgroundPath: System.Presets.wallpapersPath + 'wallpaper' + getRandomNumber(1, 5) + '.jpg',
             defaultBrowseDialogPath: ''
         },
         applications: {
@@ -177,7 +164,10 @@ System.SettingsManager.init = function () {
             refreshRate: 5,
             settings: {
                 Explorer: {
-                    view: 'list'
+                    view: 'list',
+                },
+                'Text Editor': {
+                    wordWrap: true
                 }
             }
         },
@@ -186,14 +176,9 @@ System.SettingsManager.init = function () {
             defaultFrequency: 1
         },
         sources: [
-            { filePath: System.Presets.systemApplicationsPath + 'refresh.js', appsAmount: 2 },
-            { filePath: System.Presets.systemApplicationsPath + 'explorer.js', appsAmount: 1 },
-            { filePath: System.Presets.systemApplicationsPath + 'login.js', appsAmount: 1 },
             { filePath: System.Presets.systemApplicationsPath + 'photo-viewer.js', appsAmount: 1 },
-            { filePath: System.Presets.systemApplicationsPath + 'text-editor.js', appsAmount: 1 },
-            { filePath: System.Presets.languagesPath + 'english.js', appsAmount: 1 }
+            { filePath: System.Presets.systemApplicationsPath + 'text-editor.js', appsAmount: 1 }
         ],
-        defaultLanguage: 'English',
         language: 'English',
         associatedFileExtensions: {
             'jpg': 'Photo Viewer',
@@ -205,16 +190,17 @@ System.SettingsManager.init = function () {
             'bat': 'Text Editor'
         }
     };
-    System.SettingsManager.allSourcesApps = 0;
-    System.SettingsManager.loadedSourcesApps = 0;
     System.SettingsManager.autorunDone = false;
+    System.SettingsManager.manuallyLoadedAppsLoaded = false;
 };
 
 System.Presets.init = function () {
     System.Presets.OSName = 'System';
     System.Presets.OSVersion = 0.01;
-    System.Presets.filesController = 'files/';
-    System.Presets.usersController = 'members2/';
+    System.Presets.manuallyLoadedApps = ['Login', 'Desktop Refresh', 'Windows Refresh', 'Explorer'];
+    System.Presets.fileSystemController = '/filesystem/';
+    System.Presets.imageController = '/image/';
+    System.Presets.usersController = '/members/';
     System.Presets.systemApplicationsPath = '/system-apps/';
     System.Presets.languagesPath = '/lang/';
     System.Presets.resourcesPath = '/res/';
@@ -233,6 +219,7 @@ var Process = function (app, runBy) {
         this.service.processId = this.id;
     }
     this.runBy = runBy;
+    this.started = new Date();
 };
 
 var Application = function (name) {
@@ -244,9 +231,9 @@ var Application = function (name) {
     this.info.author = 'Unknown';
     this.info.url = 'Unknown';
     this.info.language = 'Unknown';
-	this.mainWindow = undefined;
+    this.mainWindow = undefined;
     this.windows = [];
-	this.allowMultipleInstances = false;
+    this.allowMultipleInstances = false;
     this.currentPath = getScriptPath();
 
     this.main = function () { };
@@ -279,7 +266,7 @@ System.SettingsManager.addSource = function (filePath, appsAmount) {
     for (var i = 0; i < System.Settings.sources.length; i++) {
         if (System.Settings.sources[i].filePath == filePath) {
             installed = true;
-            System.API.desktopMessageBox(System.Lang.settings.sourceAlreadyAdded.formatObject({ fileName: fileName }), 'error');
+            System.desktop.app.messageBox(System.Lang.settings.sourceAlreadyAdded.format(fileName), 'error');
             break;
         }
     }
@@ -288,17 +275,19 @@ System.SettingsManager.addSource = function (filePath, appsAmount) {
             if (r) {
                 System.SettingsManager.loadFile(filePath, function (r) {
                     if (r) {
-                        System.Settings.sources.push({ filePath: filePath, appsAmount: appsAmount !== undefined ? appsAmount : 1 });
+                        let amount = appsAmount !== undefined ? appsAmount : 1;
+                        if(System.API.uri.getExtension(filePath) == 'css') amount = 0;
+                        System.Settings.sources.push({ filePath: filePath, appsAmount: amount});
                         System.SettingsManager.save();
-                        System.API.desktopMessageBox(System.Lang.settings.sourceAdded.formatObject({ fileName: fileName }), 'tick');
+                        System.desktop.app.messageBox(System.Lang.settings.sourceAdded.format(fileName), 'tick');
                     }
                     else {
-                        System.API.desktopMessageBox(System.Lang.settings.sourceError, 'error');
+                        System.desktop.app.messageBox(System.Lang.settings.sourceError, 'error');
                     }
                 });
             }
             else {
-                System.API.desktopMessageBox(System.Lang.desktop.messages.notLogged, 'error');
+                System.desktop.app.messageBox(System.Lang.desktop.messages.notLogged, 'error');
             }
         });
     }
@@ -314,18 +303,19 @@ System.SettingsManager.removeSource = function (filePath) {
                 if ($(this).attr('data-source-path') == filePath) {
                     $(this).remove();
                     unloaded = true;
-                    console.info(System.Lang.settings.sourceUnloaded.formatObject({ fileName: fileName }));
+                    console.info(System.Lang.settings.sourceUnloaded.format(fileName));
                 }
             });
-            if (!unloaded) System.API.desktopMessageBox(System.Lang.desktop.messages.notFound.formatObject({ what: fileName }), 'error');
+            if (!unloaded) System.desktop.app.messageBox(System.Lang.desktop.messages.notFound.format(fileName), 'error');
             System.Settings.sources.splice(i, 1);
-            System.SettingsManager.save();
-            System.API.desktopMessageBox(System.Lang.settings.sourceRemoved.formatObject({ fileName: fileName }), 'tick');
             uninstalled = true;
             break;
         }
     }
-    if (!uninstalled) System.API.desktopMessageBox(System.Lang.desktop.messages.notFound.formatObject({ what: fileName }), 'error');
+    if (uninstalled)
+        System.desktop.app.messageBox(System.Lang.settings.sourceRemoved.format(fileName), 'tick');
+    else
+        System.desktop.app.messageBox(System.Lang.desktop.messages.notFound.format(fileName), 'error');
 };
 
 System.SettingsManager.loadFile = function (filePath, callback) { //Rename to load source
@@ -402,7 +392,7 @@ System.SettingsManager.loadFile = function (filePath, callback) { //Rename to lo
         //LOADING ALL FILES IN DIRECTORY
         else { //FIX TODO ELSE IF
             if (!external) {
-                System.API.fileSystem.directory.getFilenames(filePath, false, function (r) {
+                System.API.fileSystem.directory.getFilenames(filePath, function (r) {
                     if (r) {
                         for (var i = 0; i < r.length; i++) {
                             if (System.API.uri.getExtension(r[i]) == 'js') {
@@ -428,7 +418,7 @@ System.SettingsManager.loadFile = function (filePath, callback) { //Rename to lo
                 $.ajax({
                     type: 'POST',
                     data: { get_system_apps_filenames_path: filePath },
-                    url: System.Presets.filesController + 'get_system_apps_filenames',
+                    url: System.Presets.fileSystemController + 'get_system_apps_filenames',
                     dataType: 'json',
                     cache: 'false',
                     success: function(r) {
@@ -459,6 +449,9 @@ System.SettingsManager.loadFile = function (filePath, callback) { //Rename to lo
 };
 
 System.SettingsManager.loadSources = function () {
+    console.info('[SOURCES] Loading sources');
+    System.SettingsManager.loadedSourcesApps = 0;
+    System.SettingsManager.allSourcesApps = 0;
     for (let i = 0; i < System.Settings.sources.length; i++) {
         System.SettingsManager.allSourcesApps += System.Settings.sources[i].appsAmount !== undefined ? System.Settings.sources[i].appsAmount : 1;
     }
@@ -467,14 +460,32 @@ System.SettingsManager.loadSources = function () {
     }
 };
 
+System.SettingsManager.loadLocale = function () {
+    System.API.user.isLoggedIn(function(r) {
+        if(r) {
+            console.info('[SOURCES] Loading Explorer');
+            System.SettingsManager.loadFile(System.Presets.systemApplicationsPath + 'explorer.js');
+            System.SettingsManager.loadSources();
+        }
+        else localStorage.removeItem('username');
+        if(!System.SettingsManager.manuallyLoadedAppsLoaded) {
+            console.info('[SOURCES] Loading login and refresh services');
+            System.SettingsManager.loadFile(System.Presets.systemApplicationsPath + 'login.js');
+            System.SettingsManager.loadFile(System.Presets.systemApplicationsPath + 'refresh.js');
+            System.SettingsManager.manuallyLoadedAppsLoaded = true;
+        }
+    });
+};
+
 System.SettingsManager.load = function (callback) {
     System.API.fileSystem.file.read('settings.json', function (r) {
         if (r) {
-            System.Settings = Save.parse(r);
+            System.Settings = JSON.parse(r);
             console.info('[SYSTEM] Settings file loaded');
         }
-        System.SettingsManager.loadSources();
-        if(callback !== undefined) callback();
+        System.SettingsManager.loadFile(System.Presets.languagesPath + System.Settings.language.toLowerCase() + '.js', function(r) {
+            if(!r) System.SettingsManager.loadLocale();
+        });
     });
 };
 
@@ -483,7 +494,7 @@ System.SettingsManager.removeKey = function (keyName) {
 };
 
 System.SettingsManager.save = function () {
-    System.API.fileSystem.file.write('settings.json', Save.stringify(System.Settings));
+    System.API.fileSystem.file.write('settings.json', JSON.stringify(System.Settings));
 };
 
 /*==============================================================
@@ -548,15 +559,19 @@ System.ApplicationManager.load = function (app) {
             }
         }
     }
-    System.SettingsManager.loadedSourcesApps++;
+
     System.Applications.push(app);
-    var index = System.Settings.applications.installed.indexOf(app.name);
-    if(index == -1) {
+
+    var index = System.Presets.manuallyLoadedApps.indexOf(app.name);
+    if(index == -1) System.SettingsManager.loadedSourcesApps++;
+
+    var index2 = System.Settings.applications.installed.indexOf(app.name);
+    if(index2 == -1) {
         if(app.install !== undefined) app.install();
         System.Settings.applications.installed.push(app.name);
     }
     console.info('[APPLICATIONS] ' + app.name + ' application loaded');
-    System.ApplicationManager.initLogin();
+    System.ApplicationManager.initLogin(app.name);
 };
 
 System.ApplicationManager.getApplicationByName = function (name) {
@@ -568,32 +583,34 @@ System.ApplicationManager.getApplicationByName = function (name) {
 
 System.ApplicationManager.run = function (app, args, system) {
     if (app && app.main !== undefined) {
-		var runningProcess = System.ProcessManager.getProcessByApplicationName(app.name);
-		if(runningProcess && !app.allowMultipleInstances) {
-			if(runningProcess.app.mainWindow !== undefined) {
-				if(runningProcess.app.mainWindow.minimized) runningProcess.app.mainWindow.unminimize();
-				else
-					runningProcess.app.mainWindow.setFocus();
-			}
-			else if(runningProcess.app.getOpenedWindowsCount() > 0) {
-				if(runningProcess.app.windows[0].minimized) runningProcess.app.windows[0].unminimize();
-					else
-				runningProcess.app.windows[0].setFocus();
-			}
-			if(args !== undefined && args.openFile !== undefined) app.open(args.openFile);
-		}
-		else {
-			if (system == undefined) {
-				var runBy = localStorage.getItem('username') !== null ? localStorage.getItem('username') : 'Not logged in user';
-			}
-			else {
-				var runBy = 'System';
-			}
-			var process = new Process(app, runBy);
-			System.Processes.push(process);
-			app.main(args);
-			if(args !== undefined && args.openFile !== undefined) app.open(args.openFile); //FIX
-		}
+        var runningProcess = System.ProcessManager.getProcessByApplicationName(app.name);
+        if(runningProcess && !app.allowMultipleInstances) {
+            if(runningProcess.app.mainWindow !== undefined) {
+                if(runningProcess.app.mainWindow.minimized) 
+                    runningProcess.app.mainWindow.unminimize();
+                else
+                    runningProcess.app.mainWindow.setFocus();
+            }
+            else if(runningProcess.app.getOpenedWindowsCount() > 0) {
+                if(runningProcess.app.windows[0].minimized)
+                    runningProcess.app.windows[0].unminimize();
+                else
+                    runningProcess.app.windows[0].setFocus();
+            }
+            if(args !== undefined && args.openFile !== undefined) app.open(args.openFile);
+        }
+        else {
+            if (system == undefined) {
+                var runBy = localStorage.getItem('username') !== null ? localStorage.getItem('username') : 'Not logged in user';
+            }
+            else {
+                var runBy = 'System';
+            }
+            var process = new Process(app, runBy);
+            System.Processes.push(process);
+            app.main(args);
+            if(args !== undefined && args.openFile !== undefined) app.open(args.openFile); //FIX
+        }
     }
     else {
         System.API.desktopMessageBox(System.Lang.desktop.messages.runAppError, 'error', System.Lang.desktop.dialogs.error);
@@ -677,27 +694,24 @@ System.ApplicationManager.runAutorun = function () {
                 System.ServicesManager.runByName(System.Settings.services.autorun[i]);
             }
         }
-        System.ApplicationManager.runByName('Explorer', undefined, true);
-        System.desktop.app = System.ApplicationManager.getApplicationByName('Explorer');
         System.SettingsManager.autorunDone = true;
-        console.info('[SYSTEM] System initialized');
     }
 };
 
-System.ApplicationManager.initLogin = function () {
-    if (System.SettingsManager.loadedSourcesApps >= System.SettingsManager.allSourcesApps && !System.init) {
-        System.API.user.isLoggedIn(function(r) {
-            System.LocalizationManager.setLanguage();
-            if(!r) 
-                System.ApplicationManager.runByName('Login', {allowClosing: false}, true);
-            else
-                System.ApplicationManager.runAutorun();
-            System.ServicesManager.runByName('Desktop Refresh', undefined, true);
-            System.ServicesManager.runByName('Windows Refresh', undefined, true);
+System.ApplicationManager.initLogin = function (appName) {
+    if(appName == 'Desktop Refresh') System.ServicesManager.runByName('Desktop Refresh', undefined, true);
+    if(appName == 'Windows Refresh') System.ServicesManager.runByName('Windows Refresh', undefined, true);
+    System.API.user.isLoggedIn(function(r) {
+        if(!r && appName == 'Login')
+            System.ApplicationManager.runByName('Login', {allowClosing: false}, true);
+        else if(System.SettingsManager.loadedSourcesApps >= System.SettingsManager.allSourcesApps && !System.init) {
+            System.ApplicationManager.runByName('Explorer', undefined, true);
+            System.desktop.app = System.ApplicationManager.getApplicationByName('Explorer');
             System.init = true;
             System.desktop.onInit();
-        });
-    }
+            System.ApplicationManager.runAutorun();
+        }
+    });
 };
 
 /*==============================================================
@@ -715,8 +729,10 @@ System.ServicesManager.load = function (service) {
         }
     }
     System.Services.push(service);
-    System.SettingsManager.loadedSourcesApps++;
-    System.ApplicationManager.initLogin();
+    var index = System.Presets.manuallyLoadedApps.indexOf(service.name);
+    if(index == -1) System.SettingsManager.loadedSourcesApps++;
+    console.info('[SERVICES] ' + service.name + ' service loaded');
+    System.ApplicationManager.initLogin(service.name);
 };
 
 System.ServicesManager.getServiceByName = function (name) {
@@ -779,7 +795,7 @@ System.WindowManager.removeWindow = function(window) {
         window.app.windows.splice(index2, 1);
     }
     window.e.fadeOut(System.Settings.desktop.windowFadeOutTime, function() {
-        System.desktop.removeTaskbarElement(window);
+        System.desktop.removeTaskbarApp(window);
         window.remove();
         System.WindowManager.setFocusToLastWindow();
     }.bind(this));
@@ -787,7 +803,7 @@ System.WindowManager.removeWindow = function(window) {
 
 System.WindowManager.closeWindow = function(window) {
     window.e.fadeOut(System.Settings.desktop.windowFadeOutTime, function() {
-        System.desktop.removeTaskbarElement(window);
+        System.desktop.removeTaskbarApp(window);
         System.WindowManager.setFocusToLastWindow();
     });
 }
@@ -799,8 +815,10 @@ System.WindowManager.setFocusToLastWindow = function() {
             obj[key] = parseInt(this.windows[key].e.css('z-index'));
         }
     }
-    var arr = Object.keys(obj).map(function (key) { return obj[key]; });
-    var max = Math.max.apply( null, arr );
+    var arr = Object.keys(obj).map(function (key) {
+        return obj[key];
+    });
+    var max = Math.max.apply(null, arr);
     var focusSet = false;
     for (var key in this.windows) {
         if (this.windows[key].visible && parseInt(this.windows[key].e.css('z-index')) == max) {
@@ -812,17 +830,18 @@ System.WindowManager.setFocusToLastWindow = function() {
     if(!focusSet) { //FIX
         $('.window').removeClass('focus');
         $('.taskbar-app').removeClass('focus');
+        System.WindowManager.focusedWindow = undefined;
     }
 };
 
-System.WindowManager.toggle = function () {
+System.WindowManager.showDesktop = function () {
     var openedWindows = false;
     for (let i = 0; i < this.windows.length; i++) {
-            if(this.windows[i].visible) {
-                openedWindows = true;
-                this.minimizedWindows = [];
-                break;
-            }
+        if(this.windows[i].visible) {
+            openedWindows = true;
+            this.minimizedWindows = [];
+            break;
+        }
     }
 
     if(openedWindows) {
@@ -832,49 +851,16 @@ System.WindowManager.toggle = function () {
                 this.minimizedWindows.push(this.windows[i]);
             }
         }
+        this.minimizedWindows.sort(function(a, b) {
+            return parseInt(a.e.css('z-index')) - parseInt(b.e.css('z-index'));
+        });
     }
-    else {
+    else if(this.minimizedWindows.length > 0) {
         for (let i = 0; i < this.minimizedWindows.length; i++) {
             this.minimizedWindows[i].unminimize();
         }
         this.minimizedWindows = [];
     }
-};
-
-/*==============================================================
-LOCALIZATION MANAGER
-===============================================================*/
-
-System.LocalizationManager.init = function () {
-    System.Lang = {};
-    System.LocalizationManager.locales = [];
-};
-
-System.LocalizationManager.load = function (locale) {
-    if (this.getLocaleByName(locale.name)) {
-        for (var i = 1; ; i++) {
-            if (!this.getLocaleByName(locale.name + i)) {
-                console.error("A locale name conflict has occured with " + locale.name + ". '" + i + "' was appended to the name");
-                locale.name += i;
-                break;
-            }
-        }
-    }
-    this.locales.push(locale);
-    System.SettingsManager.loadedSourcesApps++;
-    System.ApplicationManager.initLogin();
-};
-
-System.LocalizationManager.getLocaleByName = function (name) {
-    for (var i = 0; i < this.locales.length; i++) {
-        if (this.locales[i].name == name) return this.locales[i];
-    }
-    return false;
-};
-
-System.LocalizationManager.setLanguage = function () {
-    System.Lang = this.getLocaleByName(System.Settings.language) ? this.getLocaleByName(System.Settings.language) : this.getLocaleByName(System.Settings.defaultLanguage);
-    console.info('[LOCALIZATION] System language has been set to ' + System.Lang.name);
 };
 
 /*==============================================================
@@ -885,7 +871,157 @@ System.IOManager.init = function () {
     $(window).on('mousemove', function (e) {
         System.IOManager.mouse.position = { x: e.clientX, y: e.clientY }; //FIX clientX, clientY
     });
+    this.keyboard.addShortcut('ctrl+d', function() {
+        System.WindowManager.showDesktop();
+    });
+    this.keyboard.addShortcut('f4', function() {
+        if(System.WindowManager.focusedWindow !== undefined) System.WindowManager.focusedWindow.close();
+    });
 };
+
+System.IOManager.keyboard.shortcut = function(e, shortcutCombination, callback) {
+    var code = 'which' in e ? e.which : e.keyCode;
+    var character = String.fromCharCode(code).toLowerCase();
+
+    if(code == 188) character = ',';
+    if(code == 190) character = '.'; 
+
+    var keys = shortcutCombination.toLowerCase().split('+');
+    var kp = 0;
+
+    var shift_nums = {
+        '`': '~',
+        '1': '!',
+        '2': '@',
+        '3': '#',
+        '4': '$',
+        '5': '%',
+        '6': '^',
+        '7': '&',
+        '8': '*',
+        '9': '(',
+        '0': ')',
+        '-': '_',
+        '=': '+',
+        ';': ':',
+        "'": "\"",
+        ',': '<',
+        '.': '>',
+        '/': '?',
+        '\\': '|'
+    }
+
+    var special_keys = {
+        'esc': 27,
+        'escape': 27,
+        'tab': 9,
+        'space': 32,
+        'return': 13,
+        'enter': 13,
+        'backspace': 8,
+
+        'scrolllock': 145,
+        'scroll_lock': 145,
+        'scroll': 145,
+        'capslock': 20,
+        'caps_lock': 20,
+        'caps': 20,
+        'numlock': 144,
+        'num_lock': 144,
+        'num': 144,
+        
+        'pause': 19,
+        'break': 19,
+        
+        'insert': 45,
+        'home': 36,
+        'delete': 46,
+        'end': 35,
+        
+        'pageup': 33,
+        'page_up': 33,
+        'pu': 33,
+
+        'pagedown': 34,
+        'page_down': 34,
+        'pd': 34,
+
+        'left': 37,
+        'up': 38,
+        'right': 39,
+        'down': 40,
+
+        'f1': 112,
+        'f2': 113,
+        'f3': 114,
+        'f4': 115,
+        'f5': 116,
+        'f6': 117,
+        'f7': 118,
+        'f8': 119,
+        'f9': 120,
+        'f10': 121,
+        'f11': 122,
+        'f12': 123
+    }
+
+    var modifiers = { 
+        shift: { wanted: false, pressed: false},
+        ctrl : { wanted: false, pressed: false},
+        alt  : { wanted: false, pressed: false},
+        meta : { wanted: false, pressed: false}   //Meta is Mac specific
+    };
+                
+    if(e.ctrlKey)   modifiers.ctrl.pressed = true;
+    if(e.shiftKey)  modifiers.shift.pressed = true;
+    if(e.altKey)    modifiers.alt.pressed = true;
+    if(e.metaKey)   modifiers.meta.pressed = true;
+                
+    for(var i=0; k = keys[i], i < keys.length; i++) {
+        if(k == 'ctrl' || k == 'control') {
+            kp++;
+            modifiers.ctrl.wanted = true;
+        } 
+        else if(k == 'shift') {
+            kp++;
+            modifiers.shift.wanted = true;
+
+        } 
+        else if(k == 'alt') {
+            kp++;
+            modifiers.alt.wanted = true;
+        } 
+        else if(k == 'meta') {
+            kp++;
+            modifiers.meta.wanted = true;
+        } 
+        else if(k.length > 1) {
+            if(special_keys[k] == code) kp++;
+        } 
+        else {
+            if(character == k) kp++;
+            else {
+                if(shift_nums[character] && e.shiftKey) {
+                    character = shift_nums[character]; 
+                    if(character == k) kp++;
+                }
+            }
+        }
+    }
+    
+    if(kp == keys.length && modifiers.ctrl.pressed == modifiers.ctrl.wanted && modifiers.shift.pressed == modifiers.shift.wanted && modifiers.alt.pressed == modifiers.alt.wanted && modifiers.meta.pressed == modifiers.meta.wanted) {
+        callback(e);
+        e.stopPropagation();
+        e.preventDefault();
+    }
+}
+
+System.IOManager.keyboard.addShortcut = function (shortcutCombination, callback) {
+    $(window).on('keydown', function (e) {
+        System.IOManager.keyboard.shortcut(e, shortcutCombination, callback);
+    });
+};
+
 
 /*==============================================================
 DESKTOP
@@ -898,7 +1034,7 @@ System.desktop.init = function () {
     this.taskbar = new Element('div', undefined, undefined, undefined, { id: 'taskbar' });
     this.taskbarMenus = new Element('span', undefined, undefined, undefined, { id: 'taskbar-menus' });
     this.taskbarApps = new Element('span', undefined, undefined, undefined, { id: 'taskbar-apps' });
-    this.time = new Element('span', undefined, undefined, undefined, { id: 'taskbar-time' });
+    this.dateTime = new Element('span', undefined, undefined, undefined, { id: 'taskbar-datetime' });
     this.tooltip = new Element('div', undefined, undefined, undefined, { id: 'tooltip' });
     this.contextMenus = {};
     this.contextMenusIdCounter = 0;
@@ -908,8 +1044,8 @@ System.desktop.init = function () {
     this.addItem(this.tooltip);
     this.taskbar.addItem(this.taskbarMenus);
     this.taskbar.addItem(this.taskbarApps);
-    this.taskbar.addItem(this.time);
-    this.time.addTooltip(this.getCurrentDate('{day}.{month}.{year}'));
+    this.taskbar.addItem(this.dateTime);
+    this.dateTime.addTooltip('');
     $('title').html(System.Presets.OSName);
     console.info('[SYSTEM] Desktop initialized');
 };
@@ -936,41 +1072,73 @@ System.desktop.onInit = function() {
         }
     },
     {
-        label: System.Lang.desktop.contextmenu.download, 
+        label: System.Lang.desktop.contextmenu.openWith,
+        action: function() {
+            System.desktop.app.openWith(this.filePath);
+        }
+    },
+    {
+        label: System.Lang.desktop.contextmenu.download,
         action: function() {
             System.API.fileSystem.file.download(this.filePath);
         }
     },
     {
-        label: System.Lang.desktop.contextmenu.rename, 
+        label: System.Lang.desktop.contextmenu.rename,
         action: function() {
-            var window = this._window;
-            var filePath = this.filePath;
-            window.app.prompt(function(r) {
-                System.API.fileSystem.file.rename(filePath, r, false, function(r) {
-                    if(r) System.desktop.app.refresh(window);
+            var data = this;
+            data.app.prompt(function(r) {
+                System.API.fileSystem.file.rename(data.filePath, r, false, function(r) {
+                    if(r) data.refresh();
                 });
-            }, System.Lang.explorer.fileExplorer.renameFile, System.Lang.desktop.contextmenu.rename, System.API.uri.getFileNameWithoutExtension(this.filePath));  
+            }, System.Lang.explorer.fileExplorer.renameItemDialog, System.Lang.desktop.contextmenu.rename, System.API.uri.getFileNameWithoutExtension(this.filePath));  
         }
     },
     {
-        label: System.Lang.desktop.contextmenu.duplicate, 
+        label: System.Lang.desktop.contextmenu.duplicate,
         action: function() {
-            var window = this._window;
+            var data = this;
             System.API.fileSystem.file.copy(this.filePath, System.API.uri.getPathWithoutFileName(this.filePath), false, function(r) {
-                if(r) System.desktop.app.refresh(window);
+                if(r) data.refresh();
             });
         }
     },
     {
-        label: System.Lang.desktop.contextmenu.delete, 
+        label: System.Lang.desktop.contextmenu.delete,
         action: function() {
-            var window = this._window;
+            var data = this;
             var items = this.itemField.getSelected();
-            for(var i = 0; i < items.length; i++) {
-                System.API.fileSystem.file.delete(items[i].path, function(r) {
-                    if(r) System.desktop.app.refresh(window);
-                });
+            if(System.Settings.fileSystem.askBeforeDeleting) {
+                data.app.messageBox(System.Lang.explorer.fileExplorer.itemDeletionConfirmation, 'warning', undefined, [new Button(System.Lang.desktop.dialogs.yesBtn, 0, 0, function() {
+                    for(let i = 0; i < items.length; i++) {
+                        if(System.API.uri.isFile(items[i].path)) {
+                            System.API.fileSystem.file.delete(items[i].path, function(r) {
+                                if(r) data.refresh();
+                            });
+                        }
+                        else {
+                            System.API.fileSystem.directory.delete(items[i].path, function(r) {
+                                if(r) data.refresh();
+                            });
+                        }
+                    }
+                }),
+                new Button(System.Lang.desktop.dialogs.noBtn)
+                ]);
+            }
+            else {
+                for(let i = 0; i < items.length; i++) {
+                    if(System.API.uri.isFile(items[i].path)) {
+                        System.API.fileSystem.file.delete(items[i].path, function(r) {
+                            if(r) data.refresh();
+                        });
+                    }
+                    else {
+                        System.API.fileSystem.directory.delete(items[i].path, function(r) {
+                            if(r) data.refresh();
+                        });
+                    }
+                }
             }
         }
     }
@@ -987,6 +1155,15 @@ System.desktop.onInit = function() {
 
     this.contextMenus.jsFile = [
     {
+        label: System.Lang.desktop.contextmenu.addToSources,
+        action: function() {
+            System.desktop.app.prompt(function(r) {
+                console.log(r);
+                System.SettingsManager.addSource(this.filePath, parseInt(r));
+            }.bind(this), System.Lang.explorer.fileExplorer.addToSourcesDialog, undefined, 1);
+        }
+    },
+    {
         label: System.Lang.desktop.contextmenu.run,
         action: function() {
             System.API.fileSystem.file.run(this.filePath);
@@ -1001,41 +1178,44 @@ System.desktop.onInit = function() {
             System.desktop.app.openPath(this.filePath, true);
         }
     },
+    this.contextMenus.jsFile.filter(function(obj) {
+        return obj.label == System.Lang.desktop.contextmenu.addToSources;
+    })[0],
     {
-        label: System.Lang.desktop.contextmenu.duplicate, 
+        label: System.Lang.desktop.contextmenu.rename,
         action: function() {
-            var window = this._window;
-            System.API.fileSystem.directory.copy(this.filePath, System.API.uri.getPathWithoutFileName(this.filePath), false, function(r) {
-                if(r) System.desktop.app.refresh(window);
-            });
+            var data = this;
+            data.app.prompt(function(r) {
+                System.API.fileSystem.directory.rename(data.filePath, r, false, function(r) {
+                    if(r) data.refresh();
+                });
+            }, System.Lang.explorer.fileExplorer.renameItemDialog, System.Lang.desktop.contextmenu.rename, System.API.uri.getFileNameWithoutExtension(this.filePath));  
         }
     },
     {
-        label: System.Lang.desktop.contextmenu.delete, 
+        label: System.Lang.desktop.contextmenu.duplicate,
         action: function() {
-            var window = this._window;
-            var items = this.itemField.getSelected();
-            for(var i = 0; i < items.length; i++) {
-                System.API.fileSystem.directory.delete(items[i].path, function(r) {
-                    if(r) System.desktop.app.refresh(window);
-                });
-            }
+            var data = this;
+            System.API.fileSystem.directory.copy(this.filePath, System.API.uri.getPathWithoutFileName(this.filePath), false, function(r) {
+                if(r) data.refresh();
+            });
         }
-    }
+    },
+    this.contextMenus.file.filter(function(obj) {
+        return obj.label == System.Lang.desktop.contextmenu.delete;
+    })[0]
     ];
-
 };
 
 System.desktop.addContextMenu = function(item, thisArg) {
     if(System.API.uri.isFile(thisArg.filePath)) {
-        var imageFileExtensions = ['jpg', 'gif', 'png'];
+        var imageFileExtensions = ['bmp', 'jpg', 'gif', 'png'];
         var extension = System.API.uri.getExtension(thisArg.filePath);
+        var contextmenu = System.desktop.contextMenus.file;
         if(imageFileExtensions.indexOf(extension) != -1) 
-            var contextmenu = System.desktop.contextMenus.file.concat(System.desktop.contextMenus.imageFile);
+            contextmenu = System.desktop.contextMenus.file.concat(System.desktop.contextMenus.imageFile);
         else if(extension == 'js')
-            var contextmenu =System.desktop.contextMenus.file.concat(System.desktop.contextMenus.jsFile);
-        else
-            var contextmenu = System.desktop.contextMenus.file;
+            contextmenu = System.desktop.contextMenus.file.concat(System.desktop.contextMenus.jsFile);
         item.addContextMenu(contextmenu, thisArg);
     }
     else {
@@ -1069,6 +1249,8 @@ System.desktop.createTaskbarMenus = function() {
             });
         }
         else if(System.Settings.desktop.taskbarPosition == 'bottom') {
+            applicationsMenu.removeClass('downwards');
+            applicationsMenu.addClass('upwards');
             applicationsMenu.children('ul').css({
                 top: 'auto',
                 bottom: System.desktop.taskbar.getHeight()
@@ -1099,6 +1281,8 @@ System.desktop.createTaskbarMenus = function() {
             });
         }
         else if(System.Settings.desktop.taskbarPosition == 'bottom') {
+            placesMenu.removeClass('downwards');
+            placesMenu.addClass('upwards');
             placesMenu.children('ul').css({
                 top: 'auto',
                 bottom: System.desktop.taskbar.getHeight()
@@ -1129,6 +1313,8 @@ System.desktop.createTaskbarMenus = function() {
             });
         }
         else if(System.Settings.desktop.taskbarPosition == 'bottom') {
+            systemMenu.removeClass('downwards');
+            systemMenu.addClass('upwards');
             systemMenu.children('ul').css({
                 top: 'auto',
                 bottom: System.desktop.taskbar.getHeight()
@@ -1162,34 +1348,14 @@ System.desktop.addTaskbarApp = function (_window) {
             _window.minimize();
         }
     });
-    item.addContextMenu([{label: System.Lang.desktop.contextmenu.closeWindow, disabled: !_window.allowClosing, action: function() {
+    item.addContextMenu([{label: System.Lang.desktop.contextmenu.closeWindow, disabled: !_window.allowClosing, shortcut: 'F4', action: function() {
         _window.close();
     }}]); //TEST FIX
     this.taskbarApps.addItem(item);
 };
 
-System.desktop.removeTaskbarElement = function (_window) {
+System.desktop.removeTaskbarApp = function (_window) {
     this.taskbarApps.e.children('.taskbar-app[data-window-id=' + _window.getId() + ']').remove();
-};
-
-System.desktop.getCurrentTime = function (format) {
-    var now = new Date();
-    var hours = (now.getHours() < 10 ? '0' : '') + now.getHours();
-    var minutes = (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
-    var seconds = (now.getSeconds() < 10 ? '0' : '') + now.getSeconds();
-    return format.formatObject({ hours: hours, minutes: minutes, seconds: seconds });
-};
-
-System.desktop.getCurrentDate = function (format) {
-    var today = new Date();
-    var day = today.getDate();
-    var month = today.getMonth() + 1;
-    var year = today.getFullYear();
-
-    if (day < 10) day = '0' + day;
-    if (month < 10) month = '0' + month;
-
-    return format.formatObject({ day: day, month: month, year: year });
 };
 
 Application.prototype.SettingsManager = System.SettingsManager;
@@ -1199,6 +1365,7 @@ Application.prototype.ServicesManager = System.ServicesManager;
 Application.prototype.WindowManager = System.WindowManager;
 Application.prototype.io = System.IOManager;
 Application.prototype.fileSystem = { file: {}, directory: {} };
+Application.prototype.image = {};
 Application.prototype.uri = {};
 Application.prototype.user = {};
 
@@ -1206,11 +1373,21 @@ Application.prototype.user = {};
 APPLICATION API
 ===============================================================*/
 
+var anchorStyles = {
+  left: 1,
+  right: 2,
+  top: 4,
+  bottom: 8
+};
+
 function Generic() { }
 
 Generic.prototype.addItem = function (item) {
     if (this.e.hasClass('window')) {
-        this.content.append(item.e);
+        if(item.e.hasClass('menustrip')) 
+            this.e.find('.window-content-wrapper').prepend(item.e);
+        else
+            this.content.append(item.e);
         if(item.resizeToWindow) {
             this.itemsResizedToWindow.push(item);
             item.originalSize = item.getDimensions();
@@ -1221,14 +1398,21 @@ Generic.prototype.addItem = function (item) {
                 item.setDimensions(item.originalSize.width + width, item.originalSize.height + height);
             });
         }
-        else if(item.anchored) {
+        else if(item.anchor !== undefined) {
             this.itemsAnchored.push(item);
             item.originalPosition = item.getPosition();
             let window = this;
             this.e.on('resize', function(e, ui) {
                 var width = ui.size.width - window.originalSize.width;
                 var height = ui.size.height - window.originalSize.height;
-                item.setPosition(item.originalPosition.x + width, item.originalPosition.y);
+                if (item.anchor & anchorStyles.left)
+                    item.setPositionX(item.originalPosition.x);
+                else if(item.anchor & anchorStyles.right)
+                    item.setPositionX(item.originalPosition.x + width);
+                if(item.anchor & anchorStyles.top)
+                    item.setPositionY(item.originalPosition.y);
+                else if(item.anchor & anchorStyles.bottom)
+                    item.setPositionY(item.originalPosition.y + height);
             });
         }
     }
@@ -1304,6 +1488,10 @@ Generic.prototype.getAttribute = function (attribute) {
     return this.e.attr(attribute);
 };
 
+Generic.prototype.setHtml = function (html) {
+    return this.e.html(html);
+};
+
 Generic.prototype.setTooltip = function (content, delay) {
     this.e[0].setAttribute('data-tooltip', content);
     this.e[0].setAttribute('data-tooltip-delay', delay !== undefined ? delay : System.Settings.desktop.defaultTooltipDelay);
@@ -1318,19 +1506,19 @@ Generic.prototype.addTooltip = function (content, delay) {
     this.e.on('mouseover', function () {
         timeout = setTimeout(function () {
             if (this.e.is(':hover') && !isContextMenuVisible()) {
-				tooltip.html(this.e.attr('data-tooltip')).fadeIn(System.Settings.desktop.tooltipFadeTime);
+                tooltip.html(this.e.attr('data-tooltip')).fadeIn(System.Settings.desktop.tooltipFadeTime);
                 tooltip.css({
                     'top': System.IOManager.mouse.position.y + 15,
                     'left': System.IOManager.mouse.position.x + 15
                 });
-                if (tooltip.outerWidth() + System.IOManager.mouse.position.x + 15 > $(window).width()) {
+                if (tooltip.outerWidth() + System.IOManager.mouse.position.x + 15 > System.desktop.window.width()) {
                     tooltip.css({
-                        'left': $(window).width() - tooltip.outerWidth() - 30
+                        'left': System.desktop.window.width() - tooltip.outerWidth() - 30
                     });
                 }
-                if (tooltip.outerHeight() + System.IOManager.mouse.position.y + 15 > $(window).height()) {
+                if (tooltip.outerHeight() + System.IOManager.mouse.position.y + 15 > System.desktop.window.height()) {
                     tooltip.css({
-                        'top': $(window).height() - tooltip.outerHeight() - 30,
+                        'top': System.desktop.window.height() - tooltip.outerHeight() - 30,
                     });
                 }
             }
@@ -1340,13 +1528,13 @@ Generic.prototype.addTooltip = function (content, delay) {
     this.e.on('mouseout mousedown', function () {
         clearTimeout(timeout);       
         tooltip.fadeOut(System.Settings.desktop.tooltipFadeTime, function() {
-			tooltip.offset({ top: 0, left: 0 });
-		});
+            tooltip.offset({ top: 0, left: 0 });
+        });
     });
 };
 
 Generic.prototype.removeTooltip = function () {
-    this.e.off('mouseenter mouseout');
+    this.e.off('mouseenter mouseout mousedown');
     this.e.removeAttr('data-tooltip');
 };
 
@@ -1354,6 +1542,7 @@ Generic.prototype.addContextMenu = function(menu, thisArg) {
     var element = this.e;
     this.e.on('contextmenu', function(event) {
         event.preventDefault();
+        event.stopPropagation();
         var div = MenuStrip.prototype.createContextMenu(menu, thisArg !== undefined ? thisArg : undefined);
         var x = System.IOManager.mouse.position.x;
         var y = System.IOManager.mouse.position.y;
@@ -1377,7 +1566,7 @@ Generic.prototype.addContextMenu = function(menu, thisArg) {
             if($(this).css('display') == 'block') {
                 var contextmenu = $(this).children('ul');
                 contextmenu.css({top: y + 3, left: x + 3});
-                if (contextmenu.outerHeight() + y + 3 > $(window).height()) {
+                if (contextmenu.outerHeight() + y + 3 > System.desktop.window.height()) {
                     contextmenu.css({
                         'top': y - contextmenu.outerHeight() - 3,
                     });
@@ -1420,13 +1609,6 @@ Tab = function (name, items) {
     this.items = items !== undefined ? items : [];
 };
 
-function Color(red, green, blue, alpha) { //Can't use anonymous constructor due to serialization limitations
-    this.red = red != undefined ? red : 0;
-    this.green = green != undefined ? green : 0;
-    this.blue = blue != undefined ? blue : 0;
-    this.alpha = alpha != undefined ? alpha : 1;
-}
-
 Element = function (tag, x, y, html, attributes) {
     var e = $(document.createElement(tag));
 
@@ -1444,7 +1626,7 @@ Window = function (caption, width, height, attributes) {
     e
     .addClass('window')
     .html('<div class="window-caption"><h1 class="window-name"></h1><div class="window-action window-action-close"></div><div class="window-action window-action-maximize"></div><div class="window-action window-action-minimize"></div></div>'
-        + '<div class="window-content"></div>')
+        + '<div class="window-content-wrapper"><div class="window-content"></div></div>')
     .hide()
     .resizable(
     {
@@ -1503,7 +1685,7 @@ Window = function (caption, width, height, attributes) {
     this.minimized = false;
     this.opened = false;
     this.visible = false;
-    this.dimensionsBeforeMaximization = { width: 0, height: 0, x: 0, y: 0 };
+    this.dimensionsBeforeMaximization = { width: width, height: height, x: 0, y: 0 };
     this.designer = function () { };
     this.main = function () { };
 };
@@ -1523,7 +1705,7 @@ Tabs = function (x, y, width, height, tabs, attributes) {
     if (tabs !== undefined) {
         this.addTabs(tabs);
     }
-	e.tabs({active: 0});
+    e.tabs({active: 0});
 };
 
 ItemField = function (x, y, width, height, structures, view, items, attributes) {
@@ -1550,10 +1732,12 @@ ItemField = function (x, y, width, height, structures, view, items, attributes) 
             });
             this.e.children('.item').removeClass('selected');
             this.selecting = true;
+            if(this.onSelectStart !== undefined) this.onSelectStart(this.getSelected());
         }
     }.bind(this));
 
     this.e.on('mouseup', function () {
+        if(this.onSelectStop !== undefined) this.onSelectStop(this.getSelected());
         this.selecting = false;
         $('#selection').remove();
     }.bind(this));
@@ -1563,15 +1747,23 @@ ItemField = function (x, y, width, height, structures, view, items, attributes) 
             return (value <= max) && (value >= min);
         }
         if (this.selecting) {
+            if(this.onSelect !== undefined) this.onSelect(this.getSelected());
             var tmp = 0;
+            var tmp2 = 0;
             var x1 = this.position.x;
-            var y1 = this.position.y;
+            var y1 = this.position.y /*+ this.e.scrollTop()*/;
             var x2 = e.pageX - this.e.offset().left;
-            var y2 = e.pageY - this.e.offset().top;
+            var y2 = e.pageY - this.e.offset().top /*+ this.e.scrollTop()*/;
+            
             if (x1 > x2) { tmp = x2; x2 = x1; x1 = tmp; }
             if (y1 > y2) { tmp = y2; y2 = y1; y1 = tmp; }
+
+            var yy1 = this.position.y + this.e.scrollTop();
+            var yy2 = e.pageY - this.e.offset().top + this.e.scrollTop();
+            if (yy1 > yy2) { tmp2 = yy2; yy2 = yy1; yy1 = tmp2; }
+
             $('#selection').css({
-                left: x1, top: y1, width: x2 - x1, height: y2 - y1
+                left: x1, top: yy1, width: x2 - x1, height: yy2 - yy1
             });
             this.e.children('.item').each(function () {
                 var pos = $(this).position();
@@ -1596,12 +1788,12 @@ Item = function (data, dblclick, click) {
     var e = $(document.createElement('li'));
 
     e.addClass('item')
-            .on('dblclick', dblclick)
-            .on('click', function () {
-                if(click !== undefined) click();
-                e.siblings('.item').removeClass('selected');
-                $(this).addClass('selected');
-            });
+    .on('dblclick', dblclick)
+    .on('click', function () {
+        if(click !== undefined) click();
+        e.siblings('.item').removeClass('selected');
+        $(this).addClass('selected');
+    });
     for (var name in data) {
         e.attr('data-' + name, data[name]);
     }
@@ -1655,6 +1847,7 @@ Input = function (type, x, y, name, value, attributes) {
     if (attributes !== undefined) e.attr(attributes);
     this.e = e;
     this.setPosition(x, y);
+    if (type == 'text') this.setWidth(200);
 };
 
 Textarea = function (x, y, width, height, value, attributes) {
@@ -1732,20 +1925,6 @@ Tabs.prototype.addTabs = function (tabs) {
 
 Tab.prototype.addItem = function (item) {
     this.items.push(item);
-};
-
-//COLOR
-
-Color.prototype.toRGBAString = function () {
-    return 'rgba(' + this.red + ', ' + this.green + ', ' + this.blue + ', ' + this.alpha + ')';
-};
-
-Color.prototype.toRGBString = function () {
-    return 'rgb(' + this.red + ', ' + this.green + ', ' + this.blue + ')';
-};
-
-Color.prototype.toHexString = function () {
-    return "#" + ((1 << 24) + (this.red << 16) + (this.green << 8) + this.blue).toString(16).slice(1);
 };
 
 //ITEMFIELD
@@ -1831,8 +2010,12 @@ Input.prototype.setFocus = function() {
 
 //TEXTAREA
 
+Textarea.prototype.setWordWrap = function(val) {
+    this.e.children('textarea').css('white-space', val ? 'normal' : 'nowrap');
+};
+
 Textarea.prototype.setFocus = function() {
-    this.e.focus();
+    this.e.children('textarea').focus();
 };
 
 Textarea.prototype.setValue = function(val) {
@@ -1849,57 +2032,65 @@ MenuStrip.prototype.createContextMenu = function(nav, thisArg) {
     var checkable = false;
     function createList(nav, list) {
         for(let i = 0; i < nav.length; i++) {
-            let li = $(document.createElement('li')).html(nav[i].label);
-            if(nav[i].disabled === true) {
-                li.addClass('disabled');
-            }
-            else if(nav[i].submenu !== undefined) {
-                li.addClass('expand');
-                var ul = $(document.createElement('ul'));
-                li.append(ul);
-                createList(nav[i].submenu, ul);
+            if(nav[i].label == '-' || nav[i].separator == true) {
+                var li = $(document.createElement('li')).html('');
+                li.addClass('separator');
             }
             else {
-                let item = nav[i];
-                var data = thisArg;
-                if(nav[i].checked === true) {
-                    li.addClass('checked');
-                    checkable = true;
-                }
-                if(nav[i].bold === true) {
+                var li = $(document.createElement('li')).html(nav[i].label);
+                if(nav[i].bold == true) {
                     li.addClass('bold');
                 }
-                if(nav[i].action !== undefined) {
-                    
-                    li.on('click', function() {
-                        if(data !== undefined) 
-                            item.action.call(data);
-                        else
-                            item.action();
-                        li.parents('.contextmenu').hide();
-                    });
+                if(nav[i].shortcut !== undefined) {
+                    li.append('<span class="shortcut">' + nav[i].shortcut + '</span>');
                 }
-                if(nav[i].onCheck !== undefined && nav[i].onUnCheck !== undefined) {
-                    checkable = true;
-                    li.on('click', function() {
-                        if(li.hasClass('checked')) {
-                            if(data !== undefined) 
-                                item.onUnCheck.call(data);
-                            else
-                                item.onUnCheck();
-                            li.removeClass('checked');
-                        }
-                        else {
-                            if(data !== undefined) 
-                                item.onCheck.call(data);
-                            else
-                                item.onCheck();
-                            li.addClass('checked');
-                        }
-                        li.parents('.contextmenu').hide();
-                    });
+                if(nav[i].disabled == true) {
+                    li.addClass('disabled');
                 }
-            } 
+                else if(nav[i].submenu !== undefined) {
+                    li.addClass('expand');
+                    var ul = $(document.createElement('ul'));
+                    li.append(ul);
+                    createList(nav[i].submenu, ul);
+                }
+                else {
+                    let item = nav[i];
+                    var data = thisArg;
+                    if(nav[i].checked == true) {
+                        li.addClass('checked');
+                        checkable = true;
+                    }
+                    if(nav[i].action !== undefined) {
+                        li.on('click', function() {
+                            if(data !== undefined) 
+                                item.action.call(data);
+                            else
+                                item.action();
+                            li.parents('.contextmenu').hide();
+                        });
+                    }
+                    if(nav[i].onCheck !== undefined && nav[i].onUnCheck !== undefined) {
+                        checkable = true;
+                        li.on('click', function() {
+                            if(li.hasClass('checked')) {
+                                if(data !== undefined) 
+                                    item.onUnCheck.call(data);
+                                else
+                                    item.onUnCheck();
+                                li.removeClass('checked');
+                            }
+                            else {
+                                if(data !== undefined) 
+                                    item.onCheck.call(data);
+                                else
+                                    item.onCheck();
+                                li.addClass('checked');
+                            }
+                            li.parents('.contextmenu').hide();
+                        });
+                    }
+                }
+            }
             list.append(li);
         }
     }
@@ -2046,51 +2237,38 @@ Window.prototype.setMinHeight = function(height) {
     this.e.resizable('option', 'minHeight', height);
 };
 
+Window.prototype.centerToWindow = function(_window) {
+    if(_window == undefined && this.app.window !== undefined) _window = this.app.mainWindow;
+    else if(_window !== undefined) {
+        var _x = (_window.getWidth() - this.getWidth()) / 2 + _window.getPositionX();
+        var _y = (_window.getHeight() - this.getHeight()) / 2 + _window.getPositionY();
+        var x = _x;
+        var y = _y;
+
+        if(_x + this.getWidth() > System.desktop.field.getWidth())
+            x = System.desktop.field.getWidth() - this.getWidth();
+        else if(_x < 0)
+            x = 0;
+        if(_y + this.getHeight() > System.desktop.field.getHeight())
+            y = System.desktop.field.getHeight() - this.getHeight();
+        else if(_y < 0)
+            y = 0;
+
+        this.setPosition(x, y);
+    }
+};
+
 Window.prototype.centerToScreen = function() {
     if(System.Settings.desktop.taskbarPosition == 'top')
         var y = (System.desktop.window.height() - this.getHeight() + System.desktop.taskbar.getHeight()) / 2;
     else if(System.Settings.desktop.taskbarPosition == 'bottom')
         var y = (System.desktop.window.height() - this.getHeight() - System.desktop.taskbar.getHeight()) / 2;
-    if(this.getHeight() > System.desktop.window.height() - System.desktop.taskbar.getHeight()) 
+    if(this.getHeight() > System.desktop.window.height() - System.desktop.taskbar.getHeight())
         var y = System.desktop.field.getPositionY();
     this.setPosition((System.desktop.window.width() - this.getWidth()) / 2, y);
 };
 
-Window.prototype.minimize = function () {
-    if (this.allowMinimizing) {
-        this.e.fadeOut(System.Settings.desktop.windowFadeOutTime, function() {
-            System.WindowManager.setFocusToLastWindow();
-        });
-        this.minimized = true;
-        this.visible = false;
-        if(this.isMainWindow()) {
-            var windows = this.app.getVisibleChildWindows();
-            this.app.minimizedWindows = [];
-            for(let i = 0; i < windows.length; i++) {
-               if(windows[i].minimizeWhenMainWindowMinimized) this.app.minimizedWindows.push(windows[i]);
-            }
-            for(let i = 0; i < this.app.minimizedWindows.length; i++) {
-               this.app.minimizedWindows[i].minimize();
-            }
-        }
-    }
-};
-
-Window.prototype.unminimize = function () {
-    this.e.fadeIn(System.Settings.desktop.windowFadeInTime);
-	this.setFocus();
-    this.minimized = false;
-    this.visible = true;
-    if(this.isMainWindow()) {
-        var windows = this.app.minimizedWindows;
-        for(var i = 0; i < windows.length; i++) {
-            windows[i].unminimize();
-        }
-        this.app.minimizedWindows = [];
-    }
-};
-
-Window.prototype.open = function () {
+Window.prototype.open = function (startPosition) {
     if (!this.opened) {
         if(System.desktop.e.find('.window[data-window-id=' +  this.id + ']').length > 0) {
             this.e.fadeIn(System.Settings.desktop.windowFadeInTime);
@@ -2114,8 +2292,30 @@ Window.prototype.open = function () {
             else
                 this.allowMinimizing = false;
             this.designer();
-    		this.centerToScreen();
+            if(startPosition !== undefined) 
+                this.setPosition(startPosition.x, startPosition.y);
+            else
+                this.centerToScreen();
             this.originalSize = this.getDimensions();
+            if(this.customSize !== undefined) {
+                this.setDimensions(this.customSize.width, this.customSize.height);
+                var width = this.customSize.width - this.originalSize.width;
+                var height = this.customSize.height - this.originalSize.height;
+                for(let i = 0; i < this.itemsResizedToWindow.length; i++) {
+                    this.itemsResizedToWindow[i].setWidth(this.itemsResizedToWindow[i].getWidth() + width);
+                    this.itemsResizedToWindow[i].setHeight(this.itemsResizedToWindow[i].getHeight() + height);
+                }
+                for(let i = 0; i < this.itemsAnchored.length; i++) {
+                    if (this.itemsAnchored[i].anchor & anchorStyles.left)
+                        this.itemsAnchored[i].setPositionX(this.itemsAnchored[i].getPositionX());
+                    else if(this.itemsAnchored[i].anchor & anchorStyles.right)
+                        this.itemsAnchored[i].setPositionX(this.itemsAnchored[i].getPositionX() + width);
+                    if(this.itemsAnchored[i].anchor & anchorStyles.top)
+                        this.itemsAnchored[i].setPositionY(this.itemsAnchored[i].getPositionY());
+                    else if(this.itemsAnchored[i].anchor & anchorStyles.bottom)
+                        this.itemsAnchored[i].setPositionY(this.itemsAnchored[i].getPositionY() + height);
+                }
+            }
         }
         this.main();
         this.setFocus();
@@ -2150,12 +2350,12 @@ Window.prototype.maximize = function () {
     if (this.allowMaximizing) {
         if (this.maximized) this.unmaximize();
         else {
-			this.dimensionsBeforeMaximization.width = this.getWidth();
-			this.dimensionsBeforeMaximization.height = this.getHeight();
-			this.dimensionsBeforeMaximization.x = this.getPosition().x;
-			this.dimensionsBeforeMaximization.y = this.getPosition().y;
-			this.setDimensions(System.desktop.window.width(), System.desktop.field.getHeight());
-			this.setPosition(0, System.desktop.field.getPositionY());
+            this.dimensionsBeforeMaximization.width = this.getWidth();
+            this.dimensionsBeforeMaximization.height = this.getHeight();
+            this.dimensionsBeforeMaximization.x = this.getPosition().x;
+            this.dimensionsBeforeMaximization.y = this.getPosition().y;
+            this.setDimensions(System.desktop.window.width(), System.desktop.field.getHeight());
+            this.setPosition(0, System.desktop.field.getPositionY());
 
             var width = System.desktop.window.width() - this.dimensionsBeforeMaximization.width;
             var height = System.desktop.field.getHeight() - this.dimensionsBeforeMaximization.height;
@@ -2164,16 +2364,24 @@ Window.prototype.maximize = function () {
                 this.itemsResizedToWindow[i].setHeight(this.itemsResizedToWindow[i].getHeight() + height);
             }
             for(let i = 0; i < this.itemsAnchored.length; i++) {
-                this.itemsAnchored[i].setPosition(this.itemsAnchored[i].getPositionX() + width, this.itemsAnchored[i].getPositionY());
+                if (this.itemsAnchored[i].anchor & anchorStyles.left)
+                    this.itemsAnchored[i].setPositionX(this.itemsAnchored[i].getPositionX());
+                else if(this.itemsAnchored[i].anchor & anchorStyles.right)
+                    this.itemsAnchored[i].setPositionX(this.itemsAnchored[i].getPositionX() + width);
+                if(this.itemsAnchored[i].anchor & anchorStyles.top)
+                    this.itemsAnchored[i].setPositionY(this.itemsAnchored[i].getPositionY());
+                else if(this.itemsAnchored[i].anchor & anchorStyles.bottom)
+                    this.itemsAnchored[i].setPositionY(this.itemsAnchored[i].getPositionY() + height);
             }
-			this.maximized = true;
-		}
+            if(this.onMaximize !== undefined) this.onMaximize();
+            this.maximized = true;
+        }
     }
 };
 
 Window.prototype.unmaximize = function() {
-	this.setDimensions(this.dimensionsBeforeMaximization.width, this.dimensionsBeforeMaximization.height);
-	this.setPosition(this.dimensionsBeforeMaximization.x, this.dimensionsBeforeMaximization.y);
+    this.setDimensions(this.dimensionsBeforeMaximization.width, this.dimensionsBeforeMaximization.height);
+    this.setPosition(this.dimensionsBeforeMaximization.x, this.dimensionsBeforeMaximization.y);
 
     var width = System.desktop.window.width() - this.dimensionsBeforeMaximization.width;
     var height = System.desktop.field.getHeight() - this.dimensionsBeforeMaximization.height;
@@ -2182,9 +2390,53 @@ Window.prototype.unmaximize = function() {
         this.itemsResizedToWindow[i].setHeight(this.itemsResizedToWindow[i].getHeight() - height);
     }
     for(let i = 0; i < this.itemsAnchored.length; i++) {
-        this.itemsAnchored[i].setPosition(this.itemsAnchored[i].getPositionX() - width, this.itemsAnchored[i].originalPosition.y);
+        if (this.itemsAnchored[i].anchor & anchorStyles.left)
+            this.itemsAnchored[i].setPositionX(this.itemsAnchored[i].getPositionX());
+        else if(this.itemsAnchored[i].anchor & anchorStyles.right)
+            this.itemsAnchored[i].setPositionX(this.itemsAnchored[i].getPositionX() - width);
+        if(this.itemsAnchored[i].anchor & anchorStyles.top)
+            this.itemsAnchored[i].setPositionY(this.itemsAnchored[i].getPositionY());
+        else if(this.itemsAnchored[i].anchor & anchorStyles.bottom)
+            this.itemsAnchored[i].setPositionY(this.itemsAnchored[i].getPositionY() - height);
     }
-	this.maximized = false;
+    if(this.onUnMaximize !== undefined) this.onUnMaximize();
+    this.maximized = false;
+};
+
+Window.prototype.minimize = function () {
+    if (this.allowMinimizing) {
+        this.e.fadeOut(System.Settings.desktop.windowFadeOutTime, function() {
+            System.WindowManager.setFocusToLastWindow();
+        });
+        this.minimized = true;
+        this.visible = false;
+        if(this.isMainWindow()) {
+            var windows = this.app.getVisibleChildWindows();
+            this.app.minimizedWindows = [];
+            for(let i = 0; i < windows.length; i++) {
+               if(windows[i].minimizeWhenMainWindowMinimized) this.app.minimizedWindows.push(windows[i]);
+            }
+            for(let i = 0; i < this.app.minimizedWindows.length; i++) {
+               this.app.minimizedWindows[i].minimize();
+            }
+        }
+        if(this.onMinimize !== undefined) this.onMinimize();
+    }
+};
+
+Window.prototype.unminimize = function () {
+    this.e.fadeIn(System.Settings.desktop.windowFadeInTime);
+    this.setFocus();
+    this.minimized = false;
+    this.visible = true;
+    if(this.isMainWindow()) {
+        var windows = this.app.minimizedWindows;
+        for(var i = 0; i < windows.length; i++) {
+            windows[i].unminimize();
+        }
+        this.app.minimizedWindows = [];
+    }
+    if(this.onUnMinimize !== undefined) this.onUnMinimize();
 };
 
 Window.prototype.setMainWindow = function () {
@@ -2192,21 +2444,21 @@ Window.prototype.setMainWindow = function () {
 };
 
 Window.prototype.isMainWindow = function () {
-    return this.app.mainWindow == this;
+    return this.app.mainWindow === this;
 };
 
 Window.prototype.setFocus = function () {
-    if(parseInt(this.e.css('z-index')) < getHighestZIndex() || parseInt(this.e.css('z-index')) == 0) {
-        $('.window').removeClass('focus');
-        this.e.css('z-index', getHighestZIndex() + 1);
-        this.e.addClass('focus');
-        if (this.showOnTaskbar) {
-            System.desktop.taskbarApps.e.children('.taskbar-app').removeClass('focus');
-            System.desktop.getTaskbarApp(this).addClass('focus');
-        }
-        else {
-            System.desktop.taskbarApps.e.children('.taskbar-app').removeClass('focus');
-        }
+    $('.window').removeClass('focus');
+    if(parseInt(this.e.css('z-index')) < getHighestZIndex() || parseInt(this.e.css('z-index')) == 0) this.e.css('z-index', getHighestZIndex() + 1);
+    this.e.addClass('focus');
+    System.WindowManager.focusedWindow = this;
+    if (this.showOnTaskbar) {
+        System.desktop.taskbarApps.e.children('.taskbar-app').removeClass('focus');
+        System.desktop.getTaskbarApp(this).addClass('focus');
+    }
+    else {
+        System.desktop.taskbarApps.e.children('.taskbar-app').removeClass('focus');
+        if(this.app.mainWindow !== undefined) System.desktop.getTaskbarApp(this.app.mainWindow).addClass('focus');
     }
 };
 
@@ -2232,11 +2484,19 @@ Window.prototype.setInputHandler = function (name, event, handler) {
     this.e.find('input[name=' + name + ']').on(event, handler);
 };
 
+Window.prototype.addShortcut = function(shortcutCombination, callback) {
+    var _window = this;
+    $(window).on('keydown', function (e) {
+        if(_window == System.WindowManager.focusedWindow) System.IOManager.keyboard.shortcut(e, shortcutCombination, callback);
+    });
+};
+
 //APPLICATION
 
 Application.prototype.messageBox = function (text, icon, caption, buttons) {
     var messageBox = new Window(caption !== undefined ? caption : System.Lang.desktop.dialogs.messagebox, 400, 50);
     messageBox.allowResizing = false;
+    messageBox.allowMaximizing = false;
     this.addWindow(messageBox);
     messageBox.destroyOnClose = true;
     var leftPadding = icon !== undefined ? 52 : 10;
@@ -2244,7 +2504,7 @@ Application.prototype.messageBox = function (text, icon, caption, buttons) {
     var label = new Label(text, leftPadding, 10);
     messageBox.addItem(label);
     messageBox.e.addClass('messagebox');
-    messageBox.e.addClass(icon);
+    messageBox.e.addClass(icon !== undefined ? icon : '');
     messageBox.open();
     var space = label.getHeight() < 32 ? 50 : 20;
     if (buttons !== undefined) {
@@ -2256,15 +2516,18 @@ Application.prototype.messageBox = function (text, icon, caption, buttons) {
             });
             width += buttons[i].getWidth() + 15;
             buttonHeight = buttons[i].getHeight();
+            if(i == 0) buttons[i].setFocus();
         }
     }
     else {
-        var button = new Button(System.Lang.desktop.dialogs.okBtn, leftPadding, label.getHeight() + space, function () { messageBox.close(); });
+        var button = new Button(System.Lang.desktop.dialogs.okBtn, leftPadding, label.getHeight() + space, function () {
+            messageBox.close();
+        });
         messageBox.addItem(button);
         buttonHeight = button.getHeight();
         button.setFocus();
     }
-	messageBox.setHeight(messageBox.getInnerHeight() + label.getHeight() + buttonHeight + space + 50);
+    messageBox.setHeight(messageBox.getInnerHeight() + label.getHeight() + buttonHeight + space + 50);
     messageBox.centerToScreen();
 };
 
@@ -2282,12 +2545,13 @@ Application.prototype.desktopMessageBox = function (text, icon, caption, buttons
     }
 };
 
-Application.prototype.prompt = function (callback, text, caption, defaultText) {
-    var prompt = new Window(caption !== undefined ? caption : System.Lang.desktop.dialogs.prompt, 400, 160);
+Application.prototype.prompt = function (callback, text, caption = System.Lang.desktop.dialogs.prompt, defaultText) {
+    var prompt = new Window(caption, 400, 170);
     prompt.destroyOnClose = true;
     this.addWindow(prompt);
     var label = new Label(text, 15, 15);
     var input = new Input('text', 15, 40, 'prompt-input', defaultText);
+    input.setWidth(350);
     var okBtn = new Button(System.Lang.desktop.dialogs.okBtn, 15, 80, function () { 
         callback(input.getValue());
         prompt.close();
@@ -2305,29 +2569,29 @@ Application.prototype.openFileDialog = function (callback, filter, defaultPath, 
     var data = this;
     var dialog = new Window(saveFile !== undefined ? System.Lang.desktop.dialogs.saveFile : System.Lang.desktop.dialogs.openFile, 550, 450);
     dialog.destroyOnClose = true;
+    dialog.showOnTaskbar = false;
 
     var path = defaultPath !== undefined ? defaultPath : (data.getSettingsItem('lastOpenFileDialogPath') !== undefined ? data.getSettingsItem('lastOpenFileDialogPath') : System.Settings.desktop.defaultBrowseDialogPath);
     var currentPath = new Input('text', 15, 15, undefined, path);
     currentPath.setWidth(300);
     dialog.filePath = '';
 
-    var fileTypes = {};
     if(filter !== undefined) 
-        fileTypes = filter;
+        var fileTypes = filter;
     else
-        fileTypes = {[System.Lang.desktop.dialogs.allFiles]: '*'};
+        var fileTypes = {[System.Lang.desktop.dialogs.allFiles]: '*'};
 
-    dialog.filterInput = new List(fileTypes, 200, 360);
+    dialog.filterInput = new List(fileTypes, 230, 360);
 
     var fileName = new Input('text', 15, 360, undefined, '');
     var field = new ItemField(15, 60, 510, 280, { tiles: '<div class="text">{name}</div>' , list: '<div class="text">{name}<span class="size">{size}</span></div>' });
     
     var goBtn = new Button(System.Lang.explorer.fileExplorer.go, 330, 15, function () {
         this.fileSystem.directory.getFilesInfo(currentPath.getValue(), true, populate);
-        currentPath.setValue(path);
+        //currentPath.setValue(path);
     }.bind(this));
 
-    var okBtn = new Button(saveFile !== undefined ? System.Lang.desktop.dialogs.saveBtn : System.Lang.desktop.dialogs.openBtn, 340, 360, function () {
+    var okBtn = new Button(saveFile !== undefined ? System.Lang.desktop.dialogs.saveBtn : System.Lang.desktop.dialogs.openBtn, 370, 360, function () {
         if(saveFile !== undefined) {
             if(fileName.getValue() != '' || dialog.filePath != '') { //dialog.filePath opening, dialog.fileName saving
                 var dir = currentPath.getValue() !== '' ? System.API.uri.trimTrailingSlash(currentPath.getValue()) + '/' : '';
@@ -2344,7 +2608,7 @@ Application.prototype.openFileDialog = function (callback, filter, defaultPath, 
         }
     });
 
-    var cancelBtn = new Button(System.Lang.desktop.dialogs.cancelBtn, 400, 360, function () {
+    var cancelBtn = new Button(System.Lang.desktop.dialogs.cancelBtn, 440, 360, function () {
         dialog.close();
     });
 
@@ -2364,10 +2628,10 @@ Application.prototype.openFileDialog = function (callback, filter, defaultPath, 
         var arr = [];
         if (r) {
             var fileTypes = dialog.filterInput.getSelected().value.split('|');
-            for (var key in r) {
+            for (let key in r) {
                 let index = fileTypes.indexOf(System.API.uri.getExtension(key));
-                if(System.API.uri.isDirectory(key) || index !== -1 || fileTypes[0] == '*') { //parentheses fix
-                    var item = new Item({ name: r[key].name, path: data.uri.getUserDirectory(r[key].relative_path, true) + r[key].name, size: bytesToSize(r[key].size)}, function () {
+                if(System.API.uri.isDirectory(key) || index !== -1 || fileTypes[0] == '*') {
+                    var item = new Item({ name: r[key].name, path: data.uri.getUserDirectory(r[key].relative_path, true) + r[key].name, size: data.fileSystem.bytesToSize(r[key].size)}, function () {
                         var s = data.uri.getUserDirectory(this.relative_path, true) + this.name;
                         if(data.uri.isFile(s)) {
                             data.setSettingsItem('lastOpenFileDialogPath', currentPath.getValue());
@@ -2386,7 +2650,10 @@ Application.prototype.openFileDialog = function (callback, filter, defaultPath, 
                         }
                     }.bind(r[key]));
                     item.e.css('background-image', getIconByFileExtension(data.uri.getExtension(r[key].name)));
-                    item.addTooltip('<div>' + System.Lang.explorer.fileExplorer.fileName + ': ' + r[key].name + '</div>' + (data.uri.isFile(r[key].name) ? '<div>' + System.Lang.explorer.fileExplorer.fileSize + ': ' + bytesToSize(r[key].size) : '') + '</div><div>' + System.Lang.explorer.fileExplorer.fileModDate + ': ' + new Date(r[key].date * 1000).toUTCString());
+                    item.addTooltip('<div>' + System.Lang.explorer.fileExplorer.fileName + ': ' + r[key].name + '</div>' + (data.uri.isFile(r[key].name) ? '<div>' + System.Lang.explorer.fileExplorer.fileSize + ': ' + data.fileSystem.bytesToSize(r[key].size) : '') + '</div><div>' + System.Lang.explorer.fileExplorer.fileModDate + ': ' + new Date(r[key].date * 1000).toLocaleString(System.Lang.code));
+                    System.desktop.addContextMenu(item, {filePath: data.uri.getUserDirectory(r[key].relative_path, true) + r[key].name, app: data, itemField: field, refresh: function() {
+                        data.fileSystem.directory.getFilesInfo(path, true, populate);
+                    }});
                     arr.push(item);
                 }
             }
@@ -2412,20 +2679,39 @@ Application.prototype.saveFileDialog = function(callback, filter, defaultPath) {
 
 Application.prototype.browseDirectoryDialog = function (callback, defaultPath) {
     var data = this;
-    var dialog = new Window(System.Lang.desktop.dialogs.browseDir, 600, 360);
+    var dialog = new Window(System.Lang.desktop.dialogs.browseDir, 550, 450);
     dialog.destroyOnClose = true;
+    dialog.showOnTaskbar = false;
+
     var path = defaultPath !== undefined ? defaultPath : (data.getSettingsItem('lastDirectoryBrowserDialogPath') !== undefined ? data.getSettingsItem('lastDirectoryBrowserDialogPath') : System.Settings.desktop.defaultBrowseDialogPath);
-    var currentPath = new Input('text', 15, 275, undefined, path);
-    var foldersField = new ItemField(15, 15, 550, 250, { tiles: '<div class="text">{name}</div>', list: '<div class="text">{name}, path: {path}</div>' });
-    var okBtn = new Button('OK', 305, 275, function () {
-        data.setSettingsItem('lastDirectoryBrowserDialogPath', currentPath.getValue());
-        callback(currentPath.getValue());
+    var currentPath = new Input('text', 15, 15, undefined, path);
+    currentPath.setWidth(300);
+    dialog.directoryPath = '';
+
+    var directoryName = new Input('text', 15, 360, undefined, '');
+
+    var foldersField = new ItemField(15, 60, 510, 280, { tiles: '<div class="text">{name}</div>', list: '<div class="text">{name}, path: {path}</div>' });
+
+    var goBtn = new Button(System.Lang.explorer.fileExplorer.go, 330, 15, function () {
+        this.fileSystem.directory.getFilesInfo(currentPath.getValue(), true, populate);
+        //currentPath.setValue(path);
+    }.bind(this));
+
+    var okBtn = new Button('OK', 230, 360, function () {
+        if(dialog.directoryPath !== '') {
+            data.setSettingsItem('lastDirectoryBrowserDialogPath', dialog.directoryPath);
+            callback(dialog.directoryPath);
+            dialog.close();
+        }
+        else {
+            callback(currentPath.getValue());
+            dialog.close();
+        }
+    });
+    var cancelBtn = new Button(System.Lang.desktop.dialogs.cancelBtn, 280, 360, function () { 
         dialog.close();
     });
-    var cancelBtn = new Button(System.Lang.desktop.dialogs.cancelBtn, 350, 275, function () { 
-        dialog.close();
-    });
-    var upBtn = new Button(System.Lang.explorer.fileExplorer.upOneLevel, 210, 275, function () {
+    var upBtn = new Button(System.Lang.explorer.fileExplorer.upOneLevel, 376, 15, function () {
         if(currentPath.getValue() != '') {
             var path = this.uri.upOneLevel(currentPath.getValue());
             this.fileSystem.directory.getFilesInfo(path, true, populate);
@@ -2435,15 +2721,23 @@ Application.prototype.browseDirectoryDialog = function (callback, defaultPath) {
     function populate(r) {
         var arr = [];
         if (r) {
-            for (key in r) {
+            for (let key in r) {
                 if (!data.uri.isFile(r[key].name)) {
                     var item = new Item({ name: r[key].name, path: data.uri.getUserDirectory(r[key].relative_path, true) + r[key].name }, function () {
                         var s = data.uri.getUserDirectory(this.relative_path, true) + this.name;
                         data.fileSystem.directory.getFilesInfo(s, true, populate);
                         currentPath.setValue(s);
+                    }.bind(r[key]),
+                    function () {
+                        directoryName.setValue(this.name);
+                        dialog.directoryPath = data.uri.getUserDirectory(this.relative_path, true) + this.name;
                     }.bind(r[key]));
+
                     item.e.css('background-image', "url('" + System.Presets.resourcesPath + "folder.png')");
-                    item.addTooltip('<div>' + System.Lang.explorer.fileExplorer.fileName + ': ' + r[key].name + '</div><div>' + System.Lang.explorer.fileExplorer.fileModDate + ': ' + new Date(r[key].date * 1000).toUTCString());
+                    item.addTooltip('<div>' + System.Lang.explorer.fileExplorer.fileName + ': ' + r[key].name + '</div><div>' + System.Lang.explorer.fileExplorer.fileModDate + ': ' + new Date(r[key].date * 1000).toLocaleString(System.Lang.code));
+                    System.desktop.addContextMenu(item, {filePath: data.uri.getUserDirectory(r[key].relative_path, true) + r[key].name, app: data, itemField: foldersField, refresh: function() {
+                        data.fileSystem.directory.getFilesInfo(path, true, populate);
+                    }});
                     arr.push(item);
                 }
             }
@@ -2452,12 +2746,23 @@ Application.prototype.browseDirectoryDialog = function (callback, defaultPath) {
     }
     this.addWindow(dialog);
     dialog.addItem(currentPath);
+    dialog.addItem(directoryName);
     dialog.addItem(foldersField);
+    dialog.addItem(goBtn);
     dialog.addItem(okBtn);
     dialog.addItem(cancelBtn);
     dialog.addItem(upBtn);
     this.fileSystem.directory.getFilesInfo(path, true, populate);
     dialog.open();
+};
+
+Application.prototype.addShortcut = function(shortcutCombination, callback) {
+    var app = this;
+    $(window).on('keydown', function (e) {
+        for(let i = 0; i < app.windows.length; i++) {
+            if(app.windows[i] == System.WindowManager.focusedWindow) System.IOManager.keyboard.shortcut(e, shortcutCombination, callback);
+        }
+    });
 };
 
 Application.prototype.addWindow = function (_window) {  
@@ -2470,11 +2775,11 @@ Application.prototype.addWindow = function (_window) {
 };
 
 Application.prototype.getOpenedWindowsCount = function() {
-	var number = 0;
-	for(var i = 0; i < this.windows.length; i++) {
-		if(this.windows[i].opened) number++;
-	}
-	return number;
+    var number = 0;
+    for(var i = 0; i < this.windows.length; i++) {
+        if(this.windows[i].opened) number++;
+    }
+    return number;
 };
 
 Application.prototype.getVisibleChildWindows = function() {
@@ -2492,15 +2797,40 @@ Application.prototype.close = function () {
         System.ProcessManager.killProcess(this.processId);
 };
 
+Application.prototype.exit = function () {
+    System.ProcessManager.killProcess(this.processId);
+};
+
+//FILESYSTEM
+
+Application.prototype.fileSystem.bytesToSize = function (bytes) {
+    if (bytes === 0) return '0 ' + System.Lang.fileSystem.bytes;
+    var k = 0;
+    var sizes = [];
+    switch (System.Settings.fileSystem.fileSizeUnits) {
+        default:
+        case 'decimal':
+            k = 1000;
+            sizes = [System.Lang.fileSystem.bytes, 'KB', 'MB', 'GB', 'TB'];
+            break;
+        case 'binary':
+            k = 1024;
+            sizes = [System.Lang.fileSystem.bytes, 'KiB', 'MiB', 'GiB', 'TiB'];
+            break;
+    }
+    var i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes < k ? bytes : (bytes / Math.pow(k, i)).toPrecision(3)) + ' ' + sizes[i];
+}
+
 //FILESYSTEM FILE
 
-Application.prototype.fileSystem.file.uploadFromDisk = function (path, inputUpload, progressElement, overwrite, callback) {
+Application.prototype.fileSystem.file.uploadFromDisk = function (path = '', inputUpload, progressElement, overwrite = false, callback) {
     var data = new FormData();
     for(var i = 0; i < inputUpload.e[0].files.length; i++) {
         data.append('userfiles[]', inputUpload.e[0].files[i]);
     }
-    data.append('upload_path', path !== undefined ? path : '');
-    data.append('upload_overwrite', overwrite !== undefined ? overwrite : false);
+    data.append('upload_path', path);
+    data.append('upload_overwrite', overwrite);
     $.ajax({
         xhr: function () {
             var xhr = $.ajaxSettings.xhr();
@@ -2513,7 +2843,7 @@ Application.prototype.fileSystem.file.uploadFromDisk = function (path, inputUplo
             }
             return xhr;
         },
-        url: System.Presets.filesController + 'uploadFromDisk',
+        url: System.Presets.fileSystemController + 'uploadFromDisk',
         type: 'POST',
         dataType: 'json',
         data: data,
@@ -2527,34 +2857,46 @@ Application.prototype.fileSystem.file.uploadFromDisk = function (path, inputUplo
     });
 };
 
-Application.prototype.fileSystem.file.uploadFromUrl = function (url, path, overwrite, callback) {
+Application.prototype.fileSystem.file.uploadFromUrl = function (url, path, overwrite = false, callback) {
     $.ajax({
-        url: System.Presets.filesController + 'uploadFromUrl',
+        url: System.Presets.fileSystemController + 'uploadFromUrl',
         type: 'POST',
         dataType: 'json',
-        data: { upload_url: url, upload_path: path !== undefined ? path : '', upload_overwrite: overwrite !== undefined ? overwrite : false },
+        data: { upload_url: url, upload_path: path !== undefined ? path : '', upload_overwrite: overwrite },
         cache: false,
         success: callback
     });
 };
 
 Application.prototype.fileSystem.file.download = function (filePath) {
-    window.location = System.Presets.filesController + 'download_file/' + System.API.uri.encode(filePath);
+    window.location = System.Presets.fileSystemController + 'download_file/' + System.API.uri.encode(filePath);
 };
 
 Application.prototype.fileSystem.file.open = function (filePath, appName) {
-    if(appName !== undefined) {
+    if(System.API.uri.getExtension(filePath) == 'link') {
+        System.API.fileSystem.file.read(filePath, function(r) {
+            if(System.API.uri.isFile(r)) {
+                System.API.fileSystem.file.open(r);
+            }
+            else {
+                if(System.desktop.app !== undefined) System.desktop.app.openPath(r);
+            }
+        });
+    }
+    else if(appName !== undefined) {
         if(appName == 'Browser') 
             window.open(this.get(filePath));
         else
             System.ApplicationManager.runByName(appName, {openFile: filePath});
     }
     else {
-    	var app = System.Settings.associatedFileExtensions[System.API.uri.getExtension(filePath)];
-    	if(app !== undefined && app !== 'Browser') 
-    		System.ApplicationManager.runByName(app, {openFile: filePath});
-    	else 
-    		window.open(this.get(filePath));
+        var app = System.Settings.associatedFileExtensions[System.API.uri.getExtension(filePath)];
+        if(app !== undefined && app !== 'Browser')
+            System.ApplicationManager.runByName(app, {openFile: filePath});
+        else if(app == 'Browser')
+            window.open(this.get(filePath));
+        else
+            System.desktop.app.openWith(filePath);
     }
 };
 
@@ -2562,7 +2904,7 @@ Application.prototype.fileSystem.file.get = function (filePath) {
     if(filePath.startsWith('/') || filePath.startsWith('http'))
         return filePath;
     else
-        return System.Presets.filesController + 'open_file/' + System.API.uri.encode(filePath);
+        return System.Presets.fileSystemController + 'open_file/' + System.API.uri.encode(filePath);
 };
 
 Application.prototype.fileSystem.file.run = function (filePath) {
@@ -2579,7 +2921,7 @@ Application.prototype.fileSystem.file.write = function (filePath, data, callback
     $.ajax({
         type: 'POST',
         data: { write_file_data: data, write_file_path: filePath },
-        url: System.Presets.filesController + 'write_file',
+        url: System.Presets.fileSystemController + 'write_file',
         cache: 'false',
         success: callback
     });
@@ -2589,7 +2931,7 @@ Application.prototype.fileSystem.file.read = function (filePath, callback) {
     $.ajax({
         type: 'POST',
         data: { read_file_path: filePath },
-        url: System.Presets.filesController + 'read_file',
+        url: System.Presets.fileSystemController + 'read_file',
         dataType: 'json',
         cache: 'false',
         success: callback
@@ -2600,18 +2942,18 @@ Application.prototype.fileSystem.file.delete = function (filePath, callback) {
     $.ajax({
         type: 'POST',
         data: { delete_file_path: filePath },
-        url: System.Presets.filesController + 'delete_file',
+        url: System.Presets.fileSystemController + 'delete_file',
         dataType: 'json',
         cache: 'false',
         success: callback
     });
 };
 
-Application.prototype.fileSystem.file.rename = function (path, newName, overwrite, callback) {
+Application.prototype.fileSystem.file.rename = function (path, newName, overwrite = false, callback) {
     $.ajax({
         type: 'POST',
-        data: { rename_file_path: path, rename_new_name: newName, rename_overwrite: overwrite !== undefined ? overwrite : false, copy_of:  System.Lang.fileSystem.copyOf },
-        url: System.Presets.filesController + 'rename_file',
+        data: { rename_file_path: path, rename_new_name: newName, rename_overwrite: overwrite, copy_of:  System.Lang.fileSystem.copyOf },
+        url: System.Presets.fileSystemController + 'rename_file',
         dataType: 'json',
         cache: 'false',
         success: callback
@@ -2622,18 +2964,18 @@ Application.prototype.fileSystem.file.move = function (path, destination, callba
     $.ajax({
         type: 'POST',
         data: { move_path: path, move_destination: destination },
-        url: System.Presets.filesController + 'move',
+        url: System.Presets.fileSystemController + 'move',
         dataType: 'json',
         cache: 'false',
         success: callback
     });
 };
 
-Application.prototype.fileSystem.file.copy = function (filePath, destination, overwrite, callback) {
+Application.prototype.fileSystem.file.copy = function (filePath, destination, overwrite = false, callback) {
     $.ajax({
         type: 'POST',
-        data: { copy_file_path: filePath, copy_file_destination: destination, copy_file_overwrite: overwrite !== undefined ? overwrite : false, copy_of:  System.Lang.fileSystem.copyOf},
-        url: System.Presets.filesController + 'copy_file',
+        data: { copy_file_path: filePath, copy_file_destination: destination, copy_file_overwrite: overwrite, copy_of:  System.Lang.fileSystem.copyOf},
+        url: System.Presets.fileSystemController + 'copy_file',
         dataType: 'json',
         cache: 'false',
         success: callback
@@ -2644,7 +2986,7 @@ Application.prototype.fileSystem.file.exists = function (filePath, callback) {
     $.ajax({
         type: 'POST',
         data: { exists_path: filePath },
-        url: System.Presets.filesController + 'exists',
+        url: System.Presets.fileSystemController + 'exists',
         dataType: 'json',
         cache: 'false',
         success: callback
@@ -2655,7 +2997,7 @@ Application.prototype.fileSystem.file.remoteExists = function (fileUrl, callback
     $.ajax({
         type: 'POST',
         data: { remote_file_exists_url: fileUrl },
-        url: System.Presets.filesController + 'remote_file_exists',
+        url: System.Presets.fileSystemController + 'remote_file_exists',
         dataType: 'json',
         cache: 'false',
         success: callback
@@ -2666,7 +3008,7 @@ Application.prototype.fileSystem.file.getInfo = function (filePath, callback) {
     $.ajax({
         type: 'POST',
         data: { get_file_info_path: filePath },
-        url: System.Presets.filesController + 'get_file_info',
+        url: System.Presets.fileSystemController + 'get_file_info',
         dataType: 'json',
         cache: 'false',
         success: callback
@@ -2675,11 +3017,11 @@ Application.prototype.fileSystem.file.getInfo = function (filePath, callback) {
 
 //FILESYSTEM DIRECTORY
 
-Application.prototype.fileSystem.directory.create = function (path, mode, callback) {
+Application.prototype.fileSystem.directory.create = function (path, callback) {
     $.ajax({
         type: 'POST',
-        data: { create_dir_path: path, create_dir_mode: (mode !== undefined ? mode : 700) },
-        url: System.Presets.filesController + 'create_dir',
+        data: { create_dir_path: path },
+        url: System.Presets.fileSystemController + 'create_dir',
         cache: 'false',
         success: callback
     });
@@ -2689,22 +3031,31 @@ Application.prototype.fileSystem.directory.delete = function (directoryPath, cal
     $.ajax({
         type: 'POST',
         data: { delete_dir_path: directoryPath },
-        url: System.Presets.filesController + 'delete_dir',
+        url: System.Presets.fileSystemController + 'delete_dir',
         dataType: 'json',
         cache: 'false',
         success: callback
     });
 };
 
-Application.prototype.fileSystem.directory.rename = Application.prototype.fileSystem.file.rename;
+Application.prototype.fileSystem.directory.rename = function (path, newName, overwrite = false, callback) {
+    $.ajax({
+        type: 'POST',
+        data: { rename_dir_path: path, rename_new_name: newName, rename_overwrite: overwrite, copy_of:  System.Lang.fileSystem.copyOf },
+        url: System.Presets.fileSystemController + 'rename_dir',
+        dataType: 'json',
+        cache: 'false',
+        success: callback
+    });
+};
 
 Application.prototype.fileSystem.directory.move = Application.prototype.fileSystem.file.move; 
 
-Application.prototype.fileSystem.directory.copy = function (directoryPath, destination, overwrite, callback) {
+Application.prototype.fileSystem.directory.copy = function (directoryPath, destination, overwrite = false, callback) {
     $.ajax({
         type: 'POST',
-        data: { copy_dir_path: directoryPath, copy_dir_destination: destination, copy_dir_overwrite: overwrite != undefined ? overwrite : false, copy_of:  System.Lang.fileSystem.copyOf },
-        url: System.Presets.filesController + 'copy_dir',
+        data: { copy_dir_path: directoryPath, copy_dir_destination: destination, copy_dir_overwrite: overwrite, copy_of:  System.Lang.fileSystem.copyOf },
+        url: System.Presets.fileSystemController + 'copy_dir',
         dataType: 'json',
         cache: 'false',
         success: callback
@@ -2713,22 +3064,22 @@ Application.prototype.fileSystem.directory.copy = function (directoryPath, desti
 
 Application.prototype.fileSystem.directory.exists = Application.prototype.fileSystem.file.exists;
 
-Application.prototype.fileSystem.directory.getFilenames = function (path, include_path, callback) {
+Application.prototype.fileSystem.directory.getFilenames = function (path, callback) {
     $.ajax({
         type: 'POST',
-        data: { get_filenames_path: path, get_filenames_include_path: (include_path ? include_path : false) },
-        url: System.Presets.filesController + 'get_filenames',
+        data: { get_filenames_path: path},
+        url: System.Presets.fileSystemController + 'get_filenames',
         dataType: 'json',
         cache: 'false',
         success: callback
     });
 };
 
-Application.prototype.fileSystem.directory.getFilesInfo = function (path, top_level_only, callback) {
+Application.prototype.fileSystem.directory.getFilesInfo = function (path, top_level_only = true, callback) {
     $.ajax({
         type: 'POST',
-        data: { get_dir_file_info_path: path, get_dir_file_info_top_level_only: (top_level_only ? top_level_only : false) },
-        url: System.Presets.filesController + 'get_dir_file_info',
+        data: { get_dir_file_info_path: path, get_dir_file_info_top_level_only: top_level_only },
+        url: System.Presets.fileSystemController + 'get_dir_file_info',
         dataType: 'json',
         cache: 'false',
         success: function(r) {
@@ -2746,10 +3097,23 @@ Application.prototype.fileSystem.directory.getFilesInfo = function (path, top_le
                 for (var prop in files) { 
                     directories[prop] = files[prop]; 
                 }
-                callback(directories);
+                if(callback !== undefined ) callback(directories);
             }
-            else callback(r);
+            else if(callback !== undefined ) callback(r);
         }
+    });
+};
+
+//IMAGE
+
+Application.prototype.image.getDimensions = function (path, callback) {
+    $.ajax({
+        type: 'POST',
+        data: { get_image_dimensions_path: path },
+        url: System.Presets.imageController + 'get_image_dimensions',
+        dataType: 'json',
+        cache: 'false',
+        success: callback
     });
 };
 
@@ -2764,7 +3128,7 @@ Application.prototype.uri.decode = function (path) {
 };
 
 Application.prototype.uri.getExtension = function (path) {
-    var parts = path.split('.');
+    var parts = path.toLowerCase().split('.');
     return parts.length > 1 ? parts.pop() : '';
 };
 
@@ -2827,13 +3191,14 @@ Application.prototype.user.login = function (username, password, callback) {
         success: function (r) {
             if (r) {
                 if (r.first_run) {
-					System.SettingsManager.init();
+                    System.SettingsManager.init();
                     System.API.fileSystem.directory.create('apps');
                     System.API.fileSystem.directory.create('desktop');
                     System.SettingsManager.save();
+                    System.SettingsManager.load();
                 }
                 else {
-                    System.SettingsManager.load(System.ApplicationManager.runAutorun);
+                    System.SettingsManager.load();
                 }
                 localStorage.setItem('username', username);
             }
@@ -2853,14 +3218,16 @@ Application.prototype.user.logout = function (reload = true, callback) {
         dataType: 'json',
         cache: 'false',
         success: function (r) {
-            if (r) System.SettingsManager.init();
-            localStorage.removeItem('username');
-            if(reload) {
-                location.reload();
-            }
-            else {
-                System.ApplicationManager.runByName('Login', undefined, true);
-                if(callback !== undefined) callback();
+            if (r) {
+                System.SettingsManager.init();
+                localStorage.removeItem('username');
+                if(reload) {
+                    location.reload();
+                }
+                else {
+                    System.ApplicationManager.runByName('Login', undefined, true);
+                    if(callback !== undefined) callback();
+                }
             }
         }
     });
